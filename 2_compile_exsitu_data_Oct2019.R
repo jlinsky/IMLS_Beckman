@@ -100,10 +100,6 @@ all_data$inst_short_added <- sub(".csv","",all_data$inst_short_added)
 # 3. Standardize genus and species name fields
 ##############################################
 
-# read in compiled raw data
-#all_data <- read.csv("exsitu_working/exsitu_compiled_raw.csv",header=TRUE,fileEncoding="latin1",strip.white=TRUE,colClasses="character",na.strings=c("NA",""))
-#  all_data2 <- all_data[,2:ncol(all_data)]
-
 # standardize hybrid column
 sort(unique(all_data$hybrid))
 all_data2 <- replace.value(all_data,"hybrid",c("H","X"),"x") # make the current values all the same
@@ -200,12 +196,8 @@ setdiff(unique(all_data2$inst_short_added),unique(all_data6$inst_short_added))
 # 5. Create infra specific name columns
 #######################################
 
-# read in data
-#all_data7 <- read.csv("exsitu_working/exsitu_compiled_namesAdded.csv",header=TRUE,fileEncoding="latin1",strip.white=TRUE,colClasses="character",na.strings=c("NA",""))
-#all_data7 <- all_data7[,2:ncol(all_data7)]
-all_data7 <- all_data6
-
 # create matrix of all "extra" species name columns, to search for infraspecific key words
+all_data7 <- all_data6
 search.col <- matrix(cbind(all_data7$extra1,all_data7$extra2,all_data7$extra3,all_data7$extra4,all_data7$extra5,all_data7$extra6),nrow=nrow(all_data7))
 # search the "extra" column matrix for matches to infraspecific key words
 matches <- which(search.col=="variety"|search.col=="var"|search.col=="var."|search.col=="v"|search.col=="v."|
@@ -240,10 +232,6 @@ all_data7$infra_rank_new  <- mgsub(all_data7$infra_rank_new, c("forma"), "f.")
 # 6. Final filter by species full name
 ######################################
 
-# read in data
-#all_data9 <- read.csv("exsitu_working/exsitu_compiled_infraStandardized.csv",header=TRUE,fileEncoding="latin1",strip.white=TRUE,colClasses="character",na.strings=c("NA",""))
-#all_data9 <- all_data9[,2:ncol(all_data9)]
-
 # create new sp_full_name column
 all_data7$sp_full_name <- NA
 ### GET RID OF FOR LOOP ??
@@ -263,15 +251,11 @@ all_data7$sp_full_name <- NA
   nrow(all_data9) #35335
 
 # write file
-write.csv(all_data9, "exsitu_working/exsitu_compiled_targetSpecies.csv")
+#write.csv(all_data9, "exsitu_working/exsitu_compiled_targetSpecies.csv")
 
 ##################################
 # 7. Standardize important columns
 #################################
-
-# read in compiled filtered data
-all_data9 <- read.csv("exsitu_working/GA2_exsitu_compiled_targetSpecies.csv",strip.white=T,colClasses="character",as.is=T,fileEncoding="latin1")
-all_data9 <- all_data9[,2:ncol(all_data9)]
 
 # standardize provenence type column
 sort(unique(all_data9$prov_type))
