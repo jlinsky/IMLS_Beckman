@@ -171,9 +171,9 @@ all_data4$infra_name_new[matches] <- all_data4[matches]
 sort(unique(all_data4$infra_name_new))
 
 # standardize infraspecific rank names
-all_data4$infra_rank_new  <- mgsub(all_data4$infra_rank_new, c("v."), "var.")
-all_data4$infra_rank_new  <- mgsub(all_data4$infra_rank_new, c("ssp."), "subsp.")
-all_data4$infra_rank_new  <- mgsub(all_data4$infra_rank_new, c("forma"), "f.")
+all_data4$infra_rank_new <- mgsub(all_data4$infra_rank_new, c("v."), "var.")
+all_data4$infra_rank_new <- mgsub(all_data4$infra_rank_new, c("ssp."), "subsp.")
+all_data4$infra_rank_new <- mgsub(all_data4$infra_rank_new, c("forma"), "f.")
   unique(all_data4$infra_rank_new)
 
 # write file
@@ -221,6 +221,11 @@ all_data6$sp_full_name[yes_infra] <- paste(all_data6$genus_new[yes_infra],all_da
 all_data6$sp_full_name[-yes_infra] <- paste(all_data6$genus_new[-yes_infra],all_data6$species_new[-yes_infra],sep=" ")
   sort(unique(all_data6$sp_full_name)); nrow(all_data6) #1500
 
+# create file for review of species names
+review_names <- distinct(all_data6,sp_full_name,sp_full_name_orig,sp_full_name_concat,
+                         genus,species,infra_rank,infra_name,cultivar,hybrid,
+                         genus_new,species_new,infra_rank_new,infra_name_new)
+
 # keep only rows from target species (based on full names)
 all_data7 <- all_data6 %>% filter(all_data6$sp_full_name %in% unique(species_list$sp_full_name))
   nrow(all_data7) #1374
@@ -235,6 +240,8 @@ all_data8 <- plyr::join(all_data8, species_list, type = "left", match = "first")
 
 # write file
 write.csv(all_data8, "exsitu_working/exsitu_compiled_speciesFiltered.csv")
+write.csv(review_names, "exsitu_working/exsitu_compiled_reviewNames.csv")
+
 
 ###################################
 # 4. Standardize important columns
@@ -358,7 +365,7 @@ all_data9 <- rbind(good,convert); nrow(all_data9) #1498
 all_data9$lat_dd <- as.numeric(all_data9$lat_dd); sort(unique(all_data9$lat_dd))
 all_data9$long_dd <- as.numeric(all_data9$long_dd); sort(unique(all_data9$long_dd))
 
-# add gps_det column
+# add gps_det (determination) column
 all_data9$gps_det <- NA
 all_data9$gps_det[which(all_data9$prov_type == "H")] <- "H"
 all_data9$gps_det[which(!is.na(all_data9$lat_dd) & !is.na(all_data9$long_dd))] <- "G"
@@ -374,14 +381,9 @@ all_data9$municipality <- replace_non_ascii(all_data9$municipality)
 all_data9$county <- replace_non_ascii(all_data9$county)
 all_data9$state <- replace_non_ascii(all_data9$state)
 all_data9$orig_source <- replace_non_ascii(all_data9$orig_source)
-all_data9$notes <- replace_non_ascii(all_data9$notes)
   # create all_locality column
 all_data9 <- unite(all_data9, "all_locality",
-                    c(locality,municipality,county,state,orig_source,notes),
-                    sep = " | ", remove = F)
-  # create collector column
-all_data9 <- unite(all_data9, "collector",
-                    c(coll_name,coll_num,coll_year),
+                    c(locality,municipality,county,state,orig_source),
                     sep = " | ", remove = F)
 
 # write file
@@ -397,16 +399,19 @@ str(all_data9)
 
 # remove duplicates
 all_data10 <- ddply(all_data9,
-                  .(sp_full_name,inst_short_added,prov_type,lat_dd,long_dd,all_locality,gps_det,
-                    locality,municipality,county,state,orig_source,notes,country,collector,
-                    sp_full_name_orig,sp_full_name_concat,
-                    genus,species,infra_rank,infra_name,cultivar,
-                    acc_num,lin_num,acq_year,germ_type,rec_as,garden_loc),
-                    summarise, sum_num_plt = sum(num_plants)) #species_name_acc,hyrbid,
+                  .(inst_short_added,species_name_acc,
+                    sp_full_name,sp_full_name_orig,sp_full_name_concat,
+                    genus,species,infra_rank,infra_name,hybrid,cultivar,
+                    prov_type,lat_dd,long_dd,all_locality,gps_det,
+                    country,municipality,state,county,locality,assoc_sp,
+                    acc_num,lin_num,orig_source,rec_as,germ_type,garden_loc,
+                    coll_num,coll_name,coll_year,
+                    notes,condition,name_determ,habitat),
+                    summarise, sum_num_plt = sum(num_plants)) #species_name_acc,
   str(all_data10); nrow(all_data10) #1472
 
 # replace commas so no issues with semicolon, just to be sure CSV works properly
 all_data10[] <- lapply(all_data10, function(x) gsub(",", ";", x))
 
 # write file
-write.csv(all_data10, file = "exsitu_working/exsitu_compiled_noDuplicates.csv")
+write.csv(all_data10, file = "exsitu_working/exsitu_compiled_readyToGeolocate.csv")
