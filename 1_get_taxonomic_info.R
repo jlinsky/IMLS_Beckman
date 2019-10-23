@@ -65,10 +65,7 @@ library(taxize)
 library(anchors)
 library(stringr)
 library(batchtools)
-#library(bit64)
-#library(httpuv)
 #library(googledrive)
-#library(taxizedb)
 
 
 #################
