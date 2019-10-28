@@ -13,7 +13,7 @@
 ### INPUT:
     # "target_taxa.csv" (list of target taxa)
       # two columns:
-        # 1. "taxa_full_name" (genus, species, infra rank, and infra name, all
+        # 1. "taxon_full_name" (genus, species, infra rank, and infra name, all
           # separated by one space each)
         # 2. "orig_list" (can say where name came from, if you are using more
           # than one source list)
@@ -184,14 +184,13 @@ write.csv(unique_gnr,"gnr_output_unique.csv")
 #gnr <- gnr_datasources()
 #write.csv(gnr,"gnr_datasources.csv")
 
-#write.csv(gnr_output_best,"gnr_output_best.csv")
-#tnrs(query=taxa_names[1:20],source="iPlant_TNRS")
-
 ################################################
 # 3. Find synonyms and children for target taxa
 ################################################
 
+##
 ### A) Tropicos (from Missouri Botanical Garden)
+##
 
 # set API key if needed and restart R
   #taxize::use_tropicos() # get API
@@ -227,7 +226,9 @@ names_tp_df <- names_tp_df[,c("taxon_name_acc","database","syn_name",
 # write file
 write.csv(names_tp_df,"taxize_tropicos_names.csv")
 
+##
 ### B) Integrated Taxonomic Information Service (ITIS)
+##
 
 # replace specific characters to match ITIS system
 taxa_names <- gsub("_","X",taxa_names,fixed=T)
@@ -269,7 +270,9 @@ colnames(children_itis_df)
 # write file
 write.csv(children_itis_df,"taxize_itis_children.csv")
 
+##
 ### C) Catalogue of Life
+##
 
 # replace specific characters to match COL system
 taxa_names <- gsub("X","x",taxa_names,fixed=T)
@@ -355,9 +358,9 @@ all_names$syn_name_with_authors <- gsub(" X "," x ",
 all_names$syn_name_with_authors <- gsub("_","x",
                                         all_names$syn_name_with_authors,fixed=T)
   # create standard syn_name_with_authors column
-#all_names$syn_name_with_authors[is.na(all_names$syn_name_with_authors)] <-
-  #paste(all_names[is.na(all_names$syn_name_with_authors),]$syn_name,
-  #all_names[is.na(all_names$syn_name_with_authors),]$syn_author)
+all_names$syn_name_with_authors[is.na(all_names$syn_name_with_authors)] <-
+  paste(all_names[is.na(all_names$syn_name_with_authors),]$syn_name,
+  all_names[is.na(all_names$syn_name_with_authors),]$syn_author)
   # keep unique values and create "ref" column of all databases with duplicates
 unique_names <- all_names %>% group_by(taxon_name_acc,syn_name) %>%
   summarize(ref = paste(database, collapse = ',')) %>% ungroup()
