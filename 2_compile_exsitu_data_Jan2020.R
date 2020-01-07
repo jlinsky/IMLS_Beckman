@@ -332,6 +332,8 @@ all_data5$taxon_full_name[yes_infra] <- paste(all_data5$genus_new[yes_infra],
   # select rows without infraspecific name and concatenate
 all_data5$taxon_full_name[-yes_infra] <- paste(all_data5$genus_new[-yes_infra],
   all_data5$species_new[-yes_infra],sep=" ")
+  # replace "NA" in new name, which comes from rows with no species name
+all_data5$taxon_full_name <- gsub(" NA","",all_data5$taxon_full_name)
   # select rows with cultivar name and concatenate in new column
 all_data5$taxon_full_name_cultivar <- NA
 yes_cult <- which(!is.na(all_data5$cultivar_new)); nrow(yes_cult)
@@ -651,25 +653,36 @@ write.csv(all_data9, "exsitu_compiled_Standardized.csv")
 # 6. Remove duplicate records
 ##############################
 
-# make num_indiv numeric
-all_data9$num_indiv <- as.numeric(all_data9$num_indiv)
-str(all_data9)
-
 # remove duplicates
 all_data10 <- ddply(all_data9,
-                  .(inst_short,taxon_full_name_acc,taxon_full_name_orig
-                    taxon_full_name,taxon_full_name_cultivar,orig_list,
-                    genus,species,infra_rank,infra_name,hybrid,cultivar_new,
-                    prov_type,lat_dd,long_dd,all_locality,gps_det,num_indiv,
+                  .(inst_short,taxon_full_name_acc,taxon_full_name_orig,
+                    taxon_full_name,taxon_full_name_created,
+                    taxon_full_name_cultivar,orig_list,
+                    genus,species,infra_rank,infra_name,hybrid,cultivar,
+                    prov_type,lat_dd,long_dd,all_locality,gps_det,
                     country,municipality,state,county,locality,assoc_sp,notes,
                     acc_num,lin_num,orig_source,rec_as,germ_type,garden_loc,
-                    aqu_year,coll_num,coll_name,coll_year,
+                    acq_year,coll_num,coll_name,
                     notes,condition,name_determ,habitat,trade_name),
-                    summarise, sum_num_plt = sum(num_indiv)) #species_name_acc,
-  str(all_data10); nrow(all_data10) #1472
+                    summarise, sum_num_indiv = sum(num_indiv))
+  str(all_data10); nrow(all_data10) #78802
 
-# replace commas so no issues with semicolon, just to be sure CSV works properly
+# replace commas with semicolon, just to be sure CSV works properly
 all_data10[] <- lapply(all_data10, function(x) gsub(",", ";", x))
 
 # write file
-write.csv(all_data10, file = "exsitu_working/exsitu_compiled_readyToGeolocate.csv")
+write.csv(all_data10, "exsitu_compiled_ReadyToGeolocate.csv")
+
+# write individual files for genera
+magnolia <- all_data10[which(all_data10$genus=="Magnolia"),]; nrow(magnolia) #15401
+  # remove unused columns
+  magnolia <- magnolia[ , -which(names(magnolia) %in% c("taxon_full_name_acc",
+    "taxon_full_name","orig_list"))]
+  write.csv(magnolia, "exsitu_compiled_Magnolia.csv")
+acer <- all_data10[which(all_data10$genus=="Acer"),]; nrow(acer) #29630
+  acer <- acer[ , -which(names(acer) %in% c("taxon_full_name_acc",
+    "taxon_full_name","orig_list"))]
+  write.csv(acer, "exsitu_compiled_Acer.csv")
+morton <- all_data10[which(all_data10$genus=="Malus" | all_data10$genus=="Quercus" |
+  all_data10$genus=="Tilia" | all_data10$genus=="Ulmus"),]; nrow(morton) #33771
+  write.csv(morton, "exsitu_compiled_MortonIMLS.csv")

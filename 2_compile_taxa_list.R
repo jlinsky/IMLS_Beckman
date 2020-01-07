@@ -1,12 +1,23 @@
-## WORKING SCRIPT
+## WORKING SCRIPT; just pushing to github for tracking purposes
+  # end has code bits that likely don't belong here;
+  # pasted there for now
 
 ### Author: Emily Beckman  ###  Date: 10/22/19
 
 ### DESCRIPTION:
+  # Matches target taxa to GBIF taxonomic backbone (adds speciesKey) and FIA
+  # species codes; GBIF in situ occurrence data is also downloaded in the
+  # process
 
-### INPUT:
+### INPUTS:
+  # taxa_list_inclu_syn.csv
+    # two columns:
+      # 1. taxon_name_acc (accepted name)
+      # 2. taxon_name (synonym)
 
 ### OUTPUTS:
+  # taxa_list_joine.csv
+  # gbif_raw.csv
 
 
 #################
@@ -17,6 +28,7 @@ library(rgbif)
 library(plyr)
 library(dplyr)
 library(tidyr)
+
 
 #################
 ### FUNCTIONS ###
@@ -29,18 +41,22 @@ library(tidyr)
 
 setwd("./Desktop")
 
-##########
-# 1.
-##########
+##################################
+# 1. Load taxa list with synonyms
+##################################
 
 # read in taxa list
 taxa_list <- read.csv("target_taxa_inclu_syn.csv", header = T,
   na.strings=c("","NA"), colClasses="character"); nrow(taxa_list)
 taxa_names <- taxa_list[,2]
 
+########################
+# 2. Download GBIF data
+########################
+
 # download data from gbif
 keys_raw <- unique(sapply(taxa_names, function(x)
-  name_backbone(name=x)$speciesKey, USE.NAMES=FALSE))
+  name_backbone(name=x)$speciesKey, USE.NAMES=F))
 keys <- paste("taxonKey = ",keys_raw[1],sep="")
   for(i in 2:length(keys_raw)){
     if(!is.null(keys_raw[[i]])){
@@ -54,80 +70,101 @@ gbif_download <- occ_download(keys,
                               "hasCoordinate = TRUE",
                               user="ebeckman",pwd="Quercus51",
                               email="ebeckman@mortonarb.org")
-gbif_download #Download key: 0027318-190918142434337 ; 0027805-190918142434337
-# !! WAIT FOR THIS DOWNLOAD TO COMPLETE BEFORE RUNNING NEXT LINE;
+# !! WAIT FOR THIS DOWNLOAD TO COMPLETE BEFORE RUNNING NEXT LINE
   # can check download status here: https://www.gbif.org/user/download
-# read in data just downloaded (!paste in new download key!)
-as.download("0027318-190918142434337.zip")
-as.download(key="0027318-190918142434337")
-gbif_raw <- occ_download_import(as.download("0027318-190918142434337.zip"))
+# read in data just downloaded
+download_get <- occ_download_get(gbif_download[1], overwrite = TRUE)
+gbif_raw <- occ_download_import(as.download(download_get[1]))
+  nrow(gbif_raw)
 
-gbif_raw <- occ_download_get("0027805-190918142434337", "GBIF_read_in",
-  overwrite = TRUE) %>% occ_download_import() # 341.67 MB
-nrow(gbif_raw)
+########################################
+# 3. Join GBIF taxon codes to taxa list
+########################################
 
 # create GBIF taxon codes table to match with taxa list
   # create taxon_name_acc column of accepted GBIF names
-subsp <- gbif_raw %>% filter(gbif_raw$taxonRank %in% "SUBSPECIES")
-subsp$taxon_name <- paste(subsp$genus,subsp$specificEpithet,"subsp.",
-  subsp$infraspecificEpithet,sep=" ")
-var <- gbif_raw %>% filter(gbif_raw$taxonRank %in% "VARIETY")
-var$taxon_name <- paste(var$genus,var$specificEpithet,"var.",
-  var$infraspecificEpithet,sep=" ")
-form <- gbif_raw %>% filter(gbif_raw$taxonRank %in% "FORM")
-form$taxon_name <- paste(form$genus,form$specificEpithet,"f.",
-  form$infraspecificEpithet,sep=" ")
-the_rest <- gbif_raw %>% filter(!gbif_raw$taxonRank %in%
-  c("SUBSPECIES","VARIETY"))
-the_rest$taxon_name <- paste(the_rest$genus,
-  the_rest$specificEpithet,sep=" ")
-gbif_raw2 <- rbind(subsp,var,the_rest)
-  sort(unique(gbif_raw2$taxon_name))
+gbif <- gbif_raw %>%
+  mutate(taxon_full_name=ifelse(taxonRank=="VARIETY",
+                    paste(genus,specificEpithet,"var.",infraspecificEpithet),
+        (taxon_full_name=ifelse(taxonRank=="FORM",
+                    paste(genus,specificEpithet,"form.",infraspecificEpithet),
+        (taxon_full_name=ifelse(taxonRank=="SUBSPECIES",
+                    paste(genus,specificEpithet,"subsp.",infraspecificEpithet),
+                    paste(genus,specificEpithet)))))))
+sort(unique(gbif$taxon_full_name))
   # keep only the pertinent columns
-gbif_join <- gbif_raw2 %>% distinct(taxon_name,scientificName,
-                                    acceptedScientificName,taxonKey,
-                                    acceptedTaxonKey,taxonomicStatus,order,
-                                    family,orderKey,familyKey,genusKey,
-                                    speciesKey)
-                                    #,genus,specificEpithet,infraspecificEpithet
-  # join gbif data to taxa list
-taxa_list_join <- join(taxa_list,gbif_join,by="taxon_name",type="full")
+gbif_short <- gbif %>% distinct(taxon_full_name,scientificName,
+                                acceptedScientificName,taxonKey,
+                                acceptedTaxonKey,taxonomicStatus,order,
+                                family,orderKey,familyKey,genusKey,
+                                speciesKey)
+                                #,genus,specificEpithet,infraspecificEpithet
+# join gbif data to taxa list
+  # replace forma symbol so it is consistent
+gbif_short$taxon_full_name <- gsub("form.","f.",gbif_short$taxon_full_name,
+  fixed=T)
+gbif_short <- gbif_short %>% separate("scientificName", c("genus2","species2",
+  "infra_rank2","infra_name2"),sep=" ", fill="right", extra="warn", remove=F)
+# search for matches to infraspecific key words
+matching <- c(grep(" var. ",gbif_short$scientificName,fixed=T),
+              grep(" f. ",gbif_short$scientificName,fixed=T),
+              grep(" subsp. ",gbif_short$scientificName,fixed=T))
+gbif_short$taxon_full_name2 <- NA
+gbif_short$taxon_full_name2[matching] <- paste(gbif_short$genus2[matching],
+  gbif_short$species2[matching],gbif_short$infra_rank2[matching],
+  gbif_short$infra_name2[matching])
+gbif_short$taxon_full_name2[-matching] <- paste(gbif_short$genus2[-matching],
+  gbif_short$species2[-matching])
 
-t <- taxa_list_join %>% group_by(speciesKey) %>% mutate(taxon_name_acc = replace(NA,grep("?",taxon_name_acc),!is.na(taxon_name_acc)))
+  unique(gbif_short$taxon_full_name2) # check results
 
-taxa_list_join$taxon_name_acc[is.na(taxa_list_join$taxon_name_acc)] <-
-  taxa_list_join[is.na(taxa_list_join$taxon_name_acc)]
+for(i in 1:nrow(gbif_short)){
+  if(!identical(gbif_short$taxon_full_name2[i],gbif_short$taxon_full_name_orig[i])){
 
+  }
+}
 
+taxa_list_join <- join(taxa_list,gbif_short,by="taxon_full_name",type="full")
+gbif_short$taxon_full_name_orig <- gbif_short$taxon_full_name
+gbif_short$taxon_full_name <- gbif_short$taxon_full_name2
+taxa_list_join <- join(taxa_list,gbif_short,by="taxon_full_name",type="full")
 
+#########################################
+# 4. Join FIA species codes to taxa list
+#########################################
 
+# join taxa list to fia tree list
+fia_list <- read.csv("FIA_speciesList_2017.csv", header = T,
+  na.strings=c("","NA"), colClasses="character")
+fia_keep <- fia_list[,c(1,2,8)]
+taxa_list_join <- join(taxa_list_join,fia_keep,type="left",match="first")
 
-write.csv(taxa_list_join, "taxa_list_joined.csv")
+####################################
+# 5. Create other necessary columns
+####################################
 
-# join to fia tree list
-fia_list <- read.csv("FIA_speciesList_2017.csv", header = T, na.strings=c("","NA"), colClasses="character"); nrow(fia_list) #1210
-  fia_set <- fia_list[,c(1:3,8)]
-sp_list_join <- join(sp_list_join,fia_set,by="sp_full_name",type="left",match="first"); nrow(sp_list_join) #315
-    # create columns for each part of species name
-sp_list_join <- sp_list_join %>% separate(sp_full_name, c("genus","specificEpithet","infraspecificEpithet1","infraspecificEpithet2")," ",remove=F)
-  sp_list_join$genus_species <- paste(sp_list_join$genus,sp_list_join$specificEpithet,sep=" ")
-    # fill important columns based on speciesKey
-sp_list_join$matched_with <- NA
-orig <- sp_list_join[which(sp_list_join$orig_list == "Y"),]; nrow(orig) #90
-new <- sp_list_join[which(is.na(sp_list_join$orig_list)),]; nrow(new) #225
+# create columns for each part of species name
+taxa_list_join <- taxa_list_join %>% separate(taxon_full_name,
+  c("genus","species","infra_rank","infra_name")," ",remove=F)
+taxa_list_join$genus_species <- paste(taxa_list_join$genus,
+  taxa_list_join$species,sep=" ")
+
+# fill important columns based on speciesKey
+#taxa_list_join$matched_with <- NA
+orig <- taxa_list_join[which(!is.na(taxa_list_join$taxon_name_acc)),]
+  nrow(orig) #25
+new <- taxa_list_join[which(is.na(taxa_list_join$taxon_name_acc)),]
+  nrow(new) #17
 for(i in 1:nrow(new)){
   for(j in 1:nrow(orig)){
-    match <- grepl(pattern = new$speciesKey[i], x = orig$speciesKey[j], fixed = T)
-    if(match == TRUE){
-      new$matched_with[i] <- orig$sp_full_name[j]
-      new$sp_of_concern[i] <- orig$sp_of_concern[j]
-      new$US_STATES_AND_S_RANKS[i] <- orig$US_STATES_AND_S_RANKS[j]
+    if(grepl(pattern=new$speciesKey[i], x=orig$speciesKey[j], fixed=T)){
+      new$taxon_name_acc[i] <- orig$taxon_full_name[j]
     }
   }
 }
-sp_list_join2 <- rbind(orig,new)
+taxa_list_join2 <- rbind(orig,new)
 
-write.csv(taxa_list_join, "taxa_list_joined.csv")
+write.csv(taxa_list_join2, "taxa_list_joined2.csv")
 
 
 
