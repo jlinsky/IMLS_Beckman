@@ -18,6 +18,8 @@ library(leaflet)
 library(RColorBrewer)
 library(tidyverse)
 library(data.table)
+library(mapview)
+library(googledrive)
 
 ##############
 ### SCRIPT ###
@@ -125,9 +127,9 @@ map_layers <- function(){
     addControl(title, position = "topright") %>%
     # add legend
     addLegend(
-      labels = c("Ex situ","In situ"),
+      labels = c("Yes","No"),
       colors = c("#2cb42c","purple"),
-      title = "Legend",
+      title = "Represented ex situ?",
       position = "topright",
       opacity = 0.75) %>%
     # add layer control panel
@@ -138,11 +140,20 @@ map_layers <- function(){
 }
 
 # view map
-map_layers()
+map <- map_layers()
+
+### TESTING how to save map
+htmlwidgets::saveWidget(map, file = "oak_test_map.html")
+
+drive_upload(htmlwidgets::saveWidget(map, file = "oak_test_map.html"))
+
+htmlwidgets::saveWidget(map, file = "oak_test_map.html")
+mapshot(map, url = paste0(getwd(),"/oak_test_map.html"))
 
 
 
-### EXAMPLE ###
+
+### EXAMPLE used to create oak map ###
 
 # load data
 data("quakes")
@@ -185,6 +196,8 @@ map_layers <- function(){
 map_layers()
 
 
+
+# how to remove things from map
 map2 <- map %>%
   clearBounds() %>%
   clearMarkers()
