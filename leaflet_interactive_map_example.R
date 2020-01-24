@@ -181,9 +181,9 @@ map_layers <- function(){
 # view map
 map_layers()
 
-#############################################
-# 3. Personal test of fixed map (no toggles)
-#############################################
+##########################################
+# 3. Personal test of map without toggles
+##########################################
 
 # read in CSV of distribution points
 df <- read.csv("all_occ_compiled_unq_all_exsitu_AJOENSIS.csv")
@@ -219,3 +219,77 @@ map <- df %>%
     opacity = 0.75)
 # view your map!
 map
+
+#################################
+# 4. Map with toggles for genera
+#################################
+
+# you can view the final product of the following code block hhere:
+#   https://leopardshark.com/esb/IMLS_exsitu_prelim_map.html
+
+# read in CSV of distribution points
+df <- read.csv("exsitu_prelim_compiled_MortonIMLS_toPlot.csv",as.is=T)
+  str(df) # take a look at the data structure
+
+# create list of unique genus names; this is the grouping used to toggle
+ge <- unique(df$genus)
+
+# create color palette
+# get some hex color codes here: https://www.rapidtables.com/web/color/RGB_Color.html
+palette_fix <- colorFactor(palette = c("#D2691E","#7B68EE","#3CB371","#00008B"),
+                       levels = c("Malus","Quercus","Tilia","Ulmus"))
+
+# write text that will be map's title
+title <- "Target taxa in four priority genera: Wild source localities of ex situ accessions
+  provided by collections in our survey"
+
+# create function to plot the map
+map_layers <- function(){
+  map <- leaflet() %>%
+  # add base map; you can add as many separate provider tiles as you wish
+  # see all provider tiles (base maps) by running "names(providers)"
+  addProviderTiles(
+    "CartoDB.PositronNoLabels",
+    # you can change the "maxZoom" option depending on how far you want
+    #   viewers to be able to zoom (addresses privacy issues)
+    options = providerTileOptions(maxZoom = 10))
+  # loop through all groups and add each toggle layer one at a time
+  for (i in 1:length(ge)) {
+    map <- map %>%
+    addCircleMarkers(
+      data = df %>%
+        # change 'species' to the name of the column you groupped
+        filter(genus == ge[i]),
+        group = ge[i],
+        lng = ~long_dd, lat = ~lat_dd,
+        radius = 4,
+        color = ~palette_fix(genus),
+        fillOpacity = 0.75,
+        stroke = F,
+        popup = ~paste0("<b>","<i>",taxon_full_name_acc,"</b>","</i>","<br/>",inst_short),
+    )
+  }
+  # add layer control
+  map %>%
+  # add title
+  addControl(title, position = "topright") %>%
+  # add legend
+  addLegend(
+    labels = c("Malus","Quercus","Tilia","Ulmus"),
+    colors = c("#D2691E","#7B68EE","#3CB371","#00008B"),
+    #title = "Target genera",
+    position = "topright",
+    opacity = 0.5) %>%
+  # add layer control panel
+  addLayersControl(
+    overlayGroups = ge,
+    options = layersControlOptions(collapsed = F))
+  #hideGroup(ge[2:length(ge)]) # hide all groups except the 1st one
+}
+
+# view map
+map_layers()
+
+# save map
+map_final <- map_layers()
+htmlwidgets::saveWidget(map_final, file = "IMLS_exsitu_test_map.html")

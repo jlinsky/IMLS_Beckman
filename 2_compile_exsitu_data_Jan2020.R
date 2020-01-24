@@ -478,7 +478,7 @@ all_data8$prov_type[which(is.na(all_data8$prov_type))] <- "U"
 # check results
 unique(all_data8$prov_type)
 
-### NUMBER OF PLANTS ###
+### NUMBER OF INDIVIDUALS ###
 
 # look at column contents
 sort(unique(all_data8$num_indiv))

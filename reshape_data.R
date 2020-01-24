@@ -19,12 +19,36 @@ library(plyr)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(stringr)
 
 ##############
 ### SCRIPT ###
 ##############
 
 setwd("./Desktop")
+
+
+#### Species richness by country ###
+
+# read in data
+df <- read.csv("global_oaks_2020_country_dist.csv", header = T,
+  na.strings=c("","NA"), colClasses="character")
+
+# separate distribution column by comma, and add new row for each
+df2 <- df %>% separate_rows(distribution)
+str(df2)
+
+# remove extra whitespace
+df2$distribution <- str_squish(df2$distribution)
+
+# count number of species for each country
+summary <- df2 %>% group_by(distribution) %>% count(name="num_species")
+head(summary)
+
+# write csv
+write.csv(summary,"global_oaks_2020_country_richness.csv")
+
+
 
 # read in data
 target_sp <- read.csv("GA2_Cons_Action_Questionnaire_TargetSpecies.csv", header = T, na.strings=c("","NA"), colClasses="character",fileEncoding="latin1"); nrow(target_sp) #213
