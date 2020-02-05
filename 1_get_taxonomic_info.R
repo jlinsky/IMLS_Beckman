@@ -12,7 +12,8 @@
 
 ### SCRIPT OUTLINE:
   # 1. Load taxa list
-  # 2. Create file of matching names from Global Names Resolver (GNR)
+  # 2A. Create file of matching names from Global Names Resolver (GNR)
+  # 2B. Download CSV of The Plant List (TPL) names
   # 3. Find synonyms for target taxa
   # 4. Create master synonym list
   # 5. Find children for target taxa
@@ -152,7 +153,7 @@ species_only <- species_names[
 unique(species_only)
 
 ####################################################################
-# 2. Create file of matching names from Global Names Resolver (GNR)
+# 2A. Create file of matching names from Global Names Resolver (GNR)
 ####################################################################
 
 # check out the datasources included in the GNR and when they were last updated
@@ -184,6 +185,19 @@ unique_gnr$matched_name <- mgsub(unique_gnr$matched_name,
   c(" × "," X "," _ ")," x ")
 
 write.csv(unique_gnr,"gnr_output_unique.csv")
+
+#################################################
+# 2B. Download CSV of The Plant List (TPL) names
+#################################################
+
+# see list of all TPL families
+tpl_families()
+
+# download all TPL data; slow!
+#tpl_get("tpl_all_names_raw")
+
+# download data for specific family or families
+tpl_get("tpl_names_raw", family=c("Magnoliaceae","Sapindaceae"))
 
 ###################################
 # 3. Find synonyms for target taxa
