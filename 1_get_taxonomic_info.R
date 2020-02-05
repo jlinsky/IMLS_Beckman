@@ -5,18 +5,28 @@
   # taxonomic information from multiple databases; information pulled includes:
     # - Global Names Resolver (GNR) matches
     # - Synonyms from Tropicos, Integrated Taxonomic Information Service (ITIS),
-      # and Encyclopedia of Life (EOL)
+    #   and CATALOGUE OF LIFE (COL)
     # - Children (var./subsp.) from ITIS and COL
   # The outputs can then be used to create a final "target_taxa_inclu_syn.csv"
-    # file by hand
+  #   file by hand
+
+### SCRIPT OUTLINE:
+  # 1. Load taxa list
+  # 2. Create file of matching names from Global Names Resolver (GNR)
+  # 3. Find synonyms for target taxa
+  # 4. Create master synonym list
+  # 5. Find children for target taxa
+  # 6. Create master children list
+  # 7. Create master target taxa list
 
 ### INPUTS:
   # target_taxa.csv (list of target taxa)
     # two columns:
-      # 1. taxon_full_name (genus, species, infra rank, and infra name, all
-        # separated by one space each)
-      # 2. orig_list (can say where name came from, if you are using more
-        # than one source list)
+      # 1. "taxon_full_name" (genus, species, infra rank, and infra name, all
+      #    separated by one space each; hybrid symbol should be " x ", rather
+      #    than "_" or "✕", and go between genus and species)
+      # 2. "orig_list" (can say where name came from, if you are using more
+      #    than one source list)
 
 ### OUTPUTS:
   ## gnr_output_unique.csv
@@ -56,33 +66,19 @@
 ### LIBRARIES ###
 #################
 
+library(plyr)
+library(tidyverse) #ggplot2,dplyr,tidyr,readr,purrr,tibble,stringr,forcats
 library(rgbif)
 library(data.table)
-library(tidyr)
-library(plyr)
-library(dplyr)
 library(taxize)
 library(anchors)
-library(stringr)
 library(batchtools)
-#library(googledrive)
+library(textclean)
 
 
 #################
 ### FUNCTIONS ###
 #################
-
-# matches up column headers, keeping all columns, not just matching ones
-  # (fills added columns with NAs)
-# SOURCE: https://amywhiteheadresearch.wordpress.com/2013/05/13/combining
-  # -dataframes-when-the-columns-dont-match/
-rbind.all.columns <- function(x, y) {
-    x.diff <- setdiff(colnames(x), colnames(y))
-    y.diff <- setdiff(colnames(y), colnames(x))
-    x[, c(as.character(y.diff))] <- NA
-    y[, c(as.character(x.diff))] <- NA
-    return(rbind(x, y))
-}
 
 # remove speices/taxa that did not have any synonyms (they create errors
   # in next step), create data frame of synonyms, and add column stating
@@ -99,7 +95,7 @@ synonyms.compiled <- function(syn_output,db_name){
       }
     }
   found <- found[-1]
-  syn_output_df <- Reduce(rbind.all.columns, syn_output[found])
+  syn_output_df <- Reduce(rbind.fill, syn_output[found])
   syn_output_df$database <- db_name
   return(syn_output_df)
 }
@@ -117,7 +113,7 @@ children.compiled <- function(child_output,db_name,greater_than){
       }
     }
   found <- found[-1]
-  child_output_df <- Reduce(rbind.all.columns, child_output[found])
+  child_output_df <- Reduce(rbind.fill, child_output[found])
   child_output_df$database <- db_name
   return(child_output_df)
 }
@@ -143,13 +139,17 @@ taxa_list_acc <- read.csv("target_taxa.csv", header = T, na.strings=c("","NA"),
 taxa_names <- taxa_list_acc[,1]
 unique(taxa_names)
 
-# create list of target SPECIES names only (and no hybrids either)
+# create list of target species names only
 species_names <- taxa_names[
   !grepl(" var. ",taxa_names) &
   !grepl(" subsp.",taxa_names) &
-  !grepl(" f. ",taxa_names) &
-  !grepl(" _ ",taxa_names)]
+  !grepl(" f. ",taxa_names)]
 unique(species_names)
+
+# create list of target species names only, with hybrids removed
+species_only <- species_names[
+  !grepl(" x ",species_names)]
+unique(species_only)
 
 ####################################################################
 # 2. Create file of matching names from Global Names Resolver (GNR)
@@ -158,13 +158,8 @@ unique(species_names)
 # check out the datasources included in the GNR and when they were last updated
 #gnr_datasources()
 
-# input target taxa list to GNR
-  # replace hybrid symbol so it can be read correctly
-taxa_names <- gsub("_","x",taxa_names,fixed=T)
-  # for some reason "Quercus x schuettei" throws an error...
-taxa_names2 <- taxa_names[-(109)]
-  # run all names through GNR
-  # this may take a few minutes if you have lots of names
+# run all names through GNR; may take a few minutes if you have lots of names
+taxa_names2 <- taxa_names
 chunked <- split(taxa_names2,chunk(taxa_names2,chunk.size=100))
 gnr_output <- data.frame()
 for(i in 1:length(chunked)){
@@ -172,63 +167,49 @@ for(i in 1:length(chunked)){
   gnr_output <- rbind(gnr_output,gnr_output_new)
   print(chunked[[i]])
 }
-  # keep unique values and create "ref" column with all databases with
-  # duplicate names
+# IF A NAME THROWS AN ERROR, remove it and run code chunk above again
+  #taxa_names2 <- taxa_names[-(109)]
+
+# keep unique values and create "ref" column listing all source databases
 unique_gnr <- gnr_output %>% group_by(user_supplied_name,matched_name) %>%
   summarize(ref = paste(data_source_title, collapse = ', ')) %>% ungroup()
-    #%>% distinct(taxon_name_acc,syn_name,.keep_all=T)
 nrow(gnr_output); nrow(unique_gnr)
-  # count the number of references for each record
+
+# count the number of references for each record
 num_ref <- unlist(lapply(unique_gnr$ref, function(x) str_count(x, ",")+1))
 unique_gnr <- cbind(unique_gnr,num_ref)
-  # standardize hybrid character
-unique_gnr$matched_name <- gsub("×","_",unique_gnr$matched_name,fixed=T)
 
-# create columns for each part of species name
-  # search for matches to infraspecific key words
-#matching <- c(grep(" var. ",unique_gnr$matched_name,fixed=T),
-#              grep(" f. ",unique_gnr$matched_name,fixed=T),
-#              grep(" subsp. ",unique_gnr$matched_name,fixed=T))
-#infra <- unique_gnr[matching,] %>% separate(matched_name,
-#  c("genus","species","infra_rank","infra_name","author")," ",
-#  extra="merge",remove=F)
-#  head(infra)
+# standardize hybrid character
+unique_gnr$matched_name <- mgsub(unique_gnr$matched_name,
+  c(" × "," X "," _ ")," x ")
 
 write.csv(unique_gnr,"gnr_output_unique.csv")
 
-# write list of databases considered in GNR
-#gnr <- gnr_datasources()
-#write.csv(gnr,"gnr_datasources.csv")
-
-################################################
-# 3. Find synonyms and children for target taxa
-################################################
+###################################
+# 3. Find synonyms for target taxa
+###################################
 
 ##
 ### A) Tropicos (from Missouri Botanical Garden)
 ##
 
-# set API key if needed and restart R
+# IF NEEDED: set API key and restart R
   #taxize::use_tropicos() # get API
-  #usethis::edit_r_environ()
-    # TROPICOS_KEY='41eebfee-a544-435c-991e-66d869db6edb'
-
-# Tropicos only searches for species (not sub-specific ranks) so we will
-  # only search for species
+  #usethis::edit_r_environ() # set API
+    # TROPICOS_KEY='________' # paste this in
 
 # replace hybrid character to match Tropicos system
-#species_names <- gsub("_","×",species_names,fixed=T); unique(species_names)
+species_names <- gsub(" x "," × ",species_names,fixed=T)
 
 # get synonyms
+# Tropicos does not search for infrataxa, so we will use species list
 names_tp <- synonyms(species_names, db="tropicos")
-# !! STOP BEFORE RUNNING NEXT LINE -- YOU MAY HAVE TO ANSWER SOME PROMPTS
-  #  ══  Results  ═════════════════
-  # Total: 191
-  # Found: 180
-  # Not Found: 11
+
+# !! STOP BEFORE RUNNING NEXT SECTION -- YOU MAY HAVE TO ANSWER SOME PROMPTS
+
 # remove speices/taxa that did not have any synonyms,
-  # create data frame of synonyms,
-  # and add column stating which database it came from
+#   create data frame of synonyms,
+#   and add column stating which database it came from
 names_tp_df <- synonyms.compiled(names_tp,"tropicos")
 # standardize column names for joining later
 colnames(names_tp_df)[colnames(names_tp_df)=="nameid"] <- "syn_id"
@@ -239,6 +220,7 @@ colnames(names_tp_df)[colnames(names_tp_df)=="scientificnamewithauthors"] <-
 names_tp_df <- names_tp_df[,c("taxon_name_acc","database","syn_name",
   "syn_name_with_authors","syn_id")]
   colnames(names_tp_df)
+
 # write file
 write.csv(names_tp_df,"taxize_tropicos_names.csv")
 
@@ -246,22 +228,19 @@ write.csv(names_tp_df,"taxize_tropicos_names.csv")
 ### B) Integrated Taxonomic Information Service (ITIS)
 ##
 
-# replace specific characters to match ITIS system
-taxa_names <- gsub("_","X",taxa_names,fixed=T)
-taxa_names <- gsub("subsp.","ssp.",taxa_names)
+# replace characters to match ITIS system
+taxa_names <- gsub(" x "," X ",taxa_names,fixed=T)
+taxa_names <- gsub(" subsp. "," ssp. ",taxa_names)
 
 # get synonyms
 names_itis <- synonyms(taxa_names, db="itis")
-# !! STOP BEFORE RUNNING NEXT LINE -- YOU MAY HAVE TO ANSWER SOME PROMPTS
-  #  ══  Results  ═════════════════
-  # Total: 297
-  # Found: 160
-  # Not Found: 137
-# remove speices/taxa that did not have any synonyms,
-  # create data frame of synonyms,
-  # and add column stating which database it came from
-names_itis_df <- synonyms.compiled(names_itis,"itis")
 
+# !! STOP BEFORE RUNNING NEXT SECTION -- YOU MAY HAVE TO ANSWER SOME PROMPTS
+
+# remove speices/taxa that did not have any synonyms,
+#   create data frame of synonyms,
+#   and add column stating which database it came from
+names_itis_df <- synonyms.compiled(names_itis,"itis")
 # standardize column names for joining later
 colnames(names_itis_df)[colnames(names_itis_df)=="acc_tsn"] <- "acc_id"
 colnames(names_itis_df)[colnames(names_itis_df)=="syn_tsn"] <- "syn_id"
@@ -269,77 +248,55 @@ colnames(names_itis_df)[colnames(names_itis_df)=="syn_tsn"] <- "syn_id"
 names_itis_df <- names_itis_df[,c("taxon_name_acc","database","syn_name",
   "syn_author","syn_id","acc_name","acc_author","acc_id")]
   colnames(names_itis_df)
+
 # write file
 write.csv(names_itis_df,"taxize_itis_names.csv")
-
-# get children names (var. and subsp.)
-children_itis <- children(species_names, db="itis")
-# !! STOP BEFORE RUNNING NEXT LINE -- YOU MAY HAVE TO ANSWER SOME PROMPTS
-  #  ══  Results  ═════════════════
-  # Total: 191
-  # Found: 117
-  # Not Found: 74
-# remove speices/taxa that did not have any children,
-  # create data frame of children,
-  # and add column stating which database it came from
-children_itis_df <- children.compiled(children_itis,"itis",4)
-colnames(children_itis_df)
-# write file
-write.csv(children_itis_df,"taxize_itis_children.csv")
 
 ##
 ### C) Catalogue of Life
 ##
 
-# replace specific characters to match COL system
-#taxa_names <- gsub("X","x",taxa_names,fixed=T)
-#taxa_names <- gsub("ssp.","subsp.",taxa_names,fixed=T)
-#taxa_names <- gsub("fo.","f.",taxa_names,fixed=T)
+# COL isn't working right now; keeps throwing "Too Many Requests (HTTP 429)"
+#   error, but even when you only do a few at a time it doesn't work
+
+#chunked <- split(species_only,chunk(species_only,chunk.size=5))
+#names_col <- data.frame()
+#for(i in 1:length(chunked)){
+#  names_col_new <- synonyms(chunked[[i]], db="col")
+#  names_col <- rbind(names_col,names_col_new)
+#  print(chunked[[i]])
+#  Sys.sleep()
+#}
 
 # get synonyms
-names_col <- synonyms(species_names, db="col")
-# !! STOP BEFORE RUNNING NEXT LINE -- YOU MAY HAVE TO ANSWER SOME PROMPTS
-  #  ══  Results  ═════════════════
-  # Total: 191
-  # Found: 185
-  # Not Found: 6
-# remove speices/taxa that did not have any synonyms,
-  # create data frame of synonyms,
-  # and add column stating which database it came from
-names_col_df <- synonyms.compiled(names_col,"col")
-# standardize column names for joining later
-for(i in 1:nrow(names_col_df)){
-  if(names_col_df$rank[i]=="infraspecies"){
-    names_col_df$syn_name[i] <- paste(names_col_df$genus[i],
-                                      names_col_df$species[i],
-                                      names_col_df$infraspecies_marker[i],
-                                      names_col_df$infraspecies[i])
-  } else {
-    names_col_df$syn_name[i] <- names_col_df$name[i]
-  }
-}
-colnames(names_col_df)[colnames(names_col_df)=="id"] <- "syn_id"
-colnames(names_col_df)[colnames(names_col_df)=="author"] <- "syn_author"
-# keep only necessary columns
-names_col_df <- names_col_df[,c("taxon_name_acc","database","syn_name",
-  "syn_author","syn_id")]; colnames(names_col_df)
-# write file
-write.csv(names_col_df,"taxize_col_names.csv")
+# COL does not search for infrataxa or hybrids, so we will use species-only list
+#names_col <- synonyms(species_only, db="col")
 
-# get children names (var. and subsp.)
-children_col <- children(species_names, db="col")
-### !! STOP BEFORE RUNNING NEXT LINE -- YOU MAY HAVE TO ANSWER SOME PROMPTS
-  #  ══  Results  ═════════════════
-  # Total: 191
-  # Found: 185
-  # Not Found: 6
-# remove speices/taxa that did not have any children,
-  # create data frame of children,
-  # and add column stating which database it came from
-children_col_df <- children.compiled(children_col,"col",3)
-colnames(children_col_df)
+# !! STOP BEFORE RUNNING NEXT SECTION -- YOU MAY HAVE TO ANSWER SOME PROMPTS
+
+# remove speices/taxa that did not have any synonyms,
+#   create data frame of synonyms,
+#   and add column stating which database it came from
+#names_col_df <- synonyms.compiled(names_col,"col")
+# standardize column names for joining later
+#for(i in 1:nrow(names_col_df)){
+#  if(names_col_df$rank[i]=="infraspecies"){
+#    names_col_df$syn_name[i] <- paste(names_col_df$genus[i],
+#                                      names_col_df$species[i],
+#                                      names_col_df$infraspecies_marker[i],
+#                                      names_col_df$infraspecies[i])
+#  } else {
+#    names_col_df$syn_name[i] <- names_col_df$name[i]
+#  }
+#}
+#colnames(names_col_df)[colnames(names_col_df)=="id"] <- "syn_id"
+#colnames(names_col_df)[colnames(names_col_df)=="author"] <- "syn_author"
+# keep only necessary columns
+#names_col_df <- names_col_df[,c("taxon_name_acc","database","syn_name",
+#  "syn_author","syn_id")]; colnames(names_col_df)
+
 # write file
-write.csv(children_col_df,"taxize_col_children.csv")
+#write.csv(names_col_df,"taxize_col_names.csv")
 
 ################################
 # 4. Create master synonym list
@@ -347,9 +304,9 @@ write.csv(children_col_df,"taxize_col_children.csv")
 
 # create dataframe of all synonyms found
   # list of data frames
-datasets <- list(names_itis_df,names_tp_df,names_col_df)
+datasets <- list(names_itis_df,names_tp_df)#,names_col_df)
   # go through list of data frames and stack each
-all_names <- Reduce(rbind.all.columns,datasets); colnames(all_names)
+all_names <- Reduce(rbind.fill,datasets); colnames(all_names)
   # order rows by taxa name
 all_names <- setorder(all_names,"taxon_name_acc")
 # write CSV file of all names
@@ -381,12 +338,12 @@ all_names$syn_name_with_authors[is.na(all_names$syn_name_with_authors)] <-
   # keep unique values and create "ref" column of all databases with duplicates
 unique_names <- all_names %>% group_by(taxon_name_acc,syn_name) %>%
   summarize(ref = paste(database, collapse = ',')) %>% ungroup()
-  #%>% distinct(taxon_name_acc,syn_name,.keep_all=T)
-nrow(all_names); nrow(unique_names) # 2243; 1829
+nrow(all_names); nrow(unique_names)
 
 # join syn list to main taxa list
 taxa_list_acc$taxon_full_name <- gsub("_","x",taxa_list_acc$taxon_full_name)
-colnames(unique_names)[colnames(unique_names)=="taxon_name_acc"] <- "taxon_full_name"
+colnames(unique_names)[colnames(unique_names)=="taxon_name_acc"] <-
+  "taxon_full_name"
 unique_names_join <- join(unique_names,taxa_list_acc,type="full")
 
 # keep only necessary columns
@@ -397,31 +354,79 @@ unique_names_join2 <- unique_names_join[,c("taxon_full_name","syn_name","ref",
 unique_names_join2 <- setorder(unique_names_join2,"taxon_full_name","syn_name")
 write.csv(unique_names_join2,"taxize_synonyms.csv")
 
+###################################
+# 5. Find children for target taxa
+###################################
+
+##
+### B) Integrated Taxonomic Information Service (ITIS)
+##
+
+# replace hybrid character to match ITIS system
+species_names <- gsub(" × "," X ",species_names,fixed=T)
+
+# get children names (var. and subsp.)
+children_itis <- children(species_names, db="itis")
+
+# !! STOP BEFORE RUNNING NEXT SECTION -- YOU MAY HAVE TO ANSWER SOME PROMPTS
+
+# remove speices/taxa that did not have any children,
+#   create data frame of children,
+#   and add column stating which database it came from
+children_itis_df <- children.compiled(children_itis,"itis",4)
+colnames(children_itis_df)
+
+# write file
+write.csv(children_itis_df,"taxize_itis_children.csv")
+
+##
+### C) Catalogue of Life
+##
+
+# COL isn't working right now; keeps throwing "Too Many Requests (HTTP 429)"
+#   error, but even when you only do a few at a time it doesn't work
+
+# get children names (var. and subsp.)
+#children_col <- children(species_only, db="col")
+
+### !! STOP BEFORE RUNNING NEXT SECTION -- YOU MAY HAVE TO ANSWER SOME PROMPTS
+
+# remove speices/taxa that did not have any children,
+#   create data frame of children,
+#   and add column stating which database it came from
+#children_col_df <- children.compiled(children_col,"col",3)
+#colnames(children_col_df)
+
+# write file
+#write.csv(children_col_df,"taxize_col_children.csv")
+
 #################################
-# 5. Create master children list
+# 6. Create master children list
 #################################
 
 # create dataframe of all children found
  # list of data frames
-datasets2 <- list(children_itis_df,children_col_df)
+datasets2 <- list(children_itis_df)#,children_col_df)
  # go through list of data frames and stack each
-all_children <- Reduce(rbind.all.columns,datasets2); colnames(all_names)
+all_children <- Reduce(rbind.fill,datasets2); colnames(all_children)
   # order rows by taxa name
-colnames(all_children)[colnames(all_children)=="taxon_name_acc"] <- "taxon_full_name"
+colnames(all_children)[colnames(all_children)=="taxon_name_acc"] <-
+  "taxon_full_name"
 all_children <- setorder(all_children,"taxon_full_name")
   # keep unique values and create "ref" column of all databases with duplicates
-unique_children <- all_children %>% group_by(taxon_full_name,childtaxa_name) %>%
+unique_children <- all_children %>% group_by(taxon_full_name,taxonname) %>%
   summarize(ref = paste(database, collapse = ',')) %>% ungroup()
-  #%>% distinct(taxon_name_acc,syn_name,.keep_all=T)
 nrow(all_children); nrow(unique_children)
 
 # write CSV file of all names
 write.csv(unique_children,"taxize_children.csv")
 
 ####################################
-# 6. Create master target taxa list
+# 7. Create master target taxa list
 ####################################
 
-# go through outputs of this script BY HAND and create a CSV file with two
-  # columns: "taxon_name_acc" (accepted name) and "taxon_name" (synonym name);
-  # save the file as "target_taxa_inclu_syn.csv"
+# go through outputs of this script BY HAND and create a CSV file with three col:
+#   1) "taxon_full_name_acc" (accepted name)
+#   2) "taxon_full_name" (synonym name or accepted name,for accepted taxa)
+#   3) "orig_list" (note what is part of accepted list, synonym, other category)
+# save the file as "target_taxa_inclu_syn.csv"
