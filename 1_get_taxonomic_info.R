@@ -19,16 +19,23 @@
       #    than one source list, etc.)
 
 ### OUTPUTS:
-  ## gnr_output_unique.csv
-    # taxize_tropicos_names.csv
-    # taxize_itis_names.csv
-    # taxize_itis_children.csv
-    # taxize_col_names.csv
-    # taxize_col_children.csv
-    # taxize_all_names_raw.csv
-  ## taxize_synonyms.csv
-  ## taxize_children.csv
 
+    # taxize_tropicos_names.csv
+    # taxize_tropicos_names_noDup.csv
+    # taxize_tropicos_syn.csv
+    # taxize_tropicos.csv
+
+    # taxize_itis_names.csv
+    # taxize_itis_names_noDup.csv
+    # taxize_itis_syn.csv
+    # taxize_itis.csv
+
+    # taxize_tpl_names.csv
+    # taxize_tpl_names_noDup.csv
+    # taxize_tpl.csv
+
+    # taxize_all_names_raw.csv
+    # taxize_all_names.csv
 
 #################
 ### LIBRARIES ###
