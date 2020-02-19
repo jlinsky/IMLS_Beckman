@@ -35,7 +35,7 @@
     # taxize_tpl.csv
 
     # taxize_all_names_raw.csv
-    # taxize_all_names.csv
+  ### taxize_all_names.csv
 
 #################
 ### LIBRARIES ###
@@ -377,12 +377,59 @@ tpl_all <- tpl_names_noDup %>% filter(tpl_names_noDup$taxon_name %in%
 # write file
 write.csv(tpl_all,"taxize_tpl.csv")
 
+##
+### D) International Plant Names Index (IPNI)
+##
+
+# GET ALL DATA FOR TARGET GENERA
+
+genera <- c("Quercus","Malus","Ulmus","Tilia")
+ipni_names <- data.frame()
+for(i in 1:length(genera)){
+  output_new <- ipni_search(genus=genera[i],output="extended") #family=,species=,infraspecies=
+  ipni_names <- rbind.fill(ipni_names,output_new)
+}
+  head(ipni_names); class(ipni_names); names(ipni_names)
+  # COLUMNS: id|version|family|full_name_without_family_and_authors|authors
+# standardize column names for joining later
+setnames(ipni_names,
+  old = c("id","full_name_without_family_and_authors","authors"),
+  new = c("match_id","taxon_name","author"),
+  skip_absent=T)
+  # replace hybrid character to match IPNI system
+  ipni_names$taxon_name <- gsub(" × "," x ",
+    ipni_names$taxon_name,fixed=T)
+  # fill other columns
+  ipni_names$taxon_name_match <- ipni_names$taxon_name
+  ipni_names$match_name_with_authors <- paste(ipni_names$taxon_name,
+    ipni_names$author)
+  ipni_names$database <- "ipni"
+  # keep only necessary columns
+  ipni_names<- ipni_names[,c("taxon_name","taxon_name_match","author",
+    "match_id","database","match_name_with_authors","family")]
+# write file
+write.csv(ipni_names,"taxize_ipni_names.csv")
+
+# remove duplicates !! VERSION NUMBER THIS IS ARBITRARY ??
+  # sort by version and remove duplicates
+  #ipni_names_noDup <- setorder(ipni_names,-version,na.last=T)
+  #ipni_names_noDup <- distinct(ipni_names_noDup,taxon_name,.keep_all=T)
+  #colnames(ipni_names_noDup)
+# write file
+#write.csv(ipni_names_noDup,"taxize_ipni_names_noDup.csv")
+
+# join with taxa list and remove non-matches
+ipni_all <- ipni_names %>% filter(ipni_names$taxon_name %in%
+  taxa_list_acc$taxon_name)
+# write file
+write.csv(ipni_all,"taxize_ipni.csv")
+
 ########################
 # 3. Create master list
 ########################
 
 # create dataframe of all synonyms found
-datasets <- list(tp_all,itis_all,tpl_all)
+datasets <- list(tp_all,itis_all,tpl_all,ipni_all)
 all_names <- Reduce(rbind.fill,datasets)
   names(all_names)
 # add a space after every period, to standardize authors more
@@ -411,7 +458,7 @@ colnames(taxa_list_acc)[colnames(taxa_list_acc)=="taxon_name"] <-
   "taxon_name_match"
 all_data <- full_join(unique_names,taxa_list_acc)
 # write CSV file of all names
-write.csv(all_data,"taxize_all_names_raw.csv")
+write.csv(all_data,"taxize_all_names_raw2.csv")
 
 # separate out taxon_name_match
 all_data2 <- all_data %>% separate("taxon_name_match",
@@ -429,6 +476,8 @@ all_data4 <- setdiff(all_data3,all_data3[which(
   (all_data3$status == "synonym" | all_data3$status == "synonym,synonym") &
   all_data3$dup == T),])
   nrow(all_data4)
+# fix status column
+all_data4$status <- gsub("ipni,ipni","ipni",all_data4$status)
 # write tile
 write.csv(all_data4,"taxize_all_names.csv")
 
@@ -551,6 +600,7 @@ write.csv(unique_children,"taxize_children.csv")
 # Get taxonomic information from various sources
 #################################################
 
+
 ########
 ### Taxonomic Name Resolution Service (TNRS)
 ########
@@ -608,39 +658,6 @@ setnames(gnr_output2,
   skip_absent=T)
   gnr_output2 <- gnr_output2[(-2)]
 write.csv(gnr_output2,"gnr_output.csv")
-
-########
-### International Plant Names Index (IPNI)
-########
-
-  # doesn't take too long
-genera <- c("Quercus","Malus","Ulmus","Tilia")
-ipni_output <- data.frame()
-for(i in 1:length(genera)){
-  output_new <- ipni_search(genus=genera[i]) #family=,species=,infraspecies=
-  ipni_output <- rbind.fill(ipni_output,output_new)
-}
-  head(ipni_output)
-  class(ipni_output) # data.frame
-  names(ipni_output)
-  # COLUMNS: id|version|family|full_name_without_family_and_authors|authors
-  ipni_output2 <- ipni_output
-setnames(ipni_output2,
-  old = c("full_name_without_family_and_authors"),
-  new = c("taxon_full_name"),
-  skip_absent=T)
-  # replace hybrid character to match TPL system
-  ipni_output2$taxon_full_name <- gsub(" × "," x ",
-    ipni_output2$taxon_full_name,fixed=T)
-  ipni_output2$source <- "IPNI"
-  # sort by version and remove duplicates
-  ipni_output2 <- setorder(ipni_output2,-version,na.last=T)
-  ipni_output3 <- distinct(ipni_output2,taxon_full_name,.keep_all=T)
-  ipni_output3 <- ipni_output3[,c(1,4:6)]
-write.csv(ipni_output3,"ipni_output.csv")
-  # join to taxa list
-  ipni_output4 <- join(taxa_list_acc[1],ipni_output3,type="left")
-write.csv(ipni_output4,"ipni_output_matched.csv")
 
 ### Other (combinations of databases)
 #resolve(taxa_names) # iPlant, TNRS, GNR
