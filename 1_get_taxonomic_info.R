@@ -49,7 +49,7 @@ library(taxize)
 library(anchors)
 library(batchtools)
 library(textclean)
-
+library(stringi)
 
 #################
 ### FUNCTIONS ###
@@ -87,12 +87,15 @@ setwd("./Desktop")
 ####################
 
 # read in taxa list
-taxa_list_acc <- read.csv("target_taxa.csv", header = T, na.strings=c("","NA"),
+taxa_list_acc <- read.csv("target_taxa2.csv", header = T, na.strings=c("","NA"),
   colClasses="character"); nrow(taxa_list_acc)
 
 # create list of target taxa names
-taxa_names <- taxa_list_acc[,1]
-unique(taxa_names)
+taxa_names <- taxa_list_acc[,1]; taxa_names
+  # use this instead if you want to select certain names
+  #taxa_names <- taxa_list_acc[which(taxa_list_acc$can_match == "match"),]
+  #  nrow(taxa_names)
+  #taxa_names <- taxa_names[,1]; taxa_names
 
 # create list of target species names, with infraspecific taxa removed
 species_names <- taxa_names[
@@ -133,7 +136,7 @@ for(i in 1:length(species_names)){
   output_new$taxon_name <- species_names[[i]]
   tp_names <- rbind.fill(tp_names,output_new)
 }
-  #head(tp_names); class(tp_names); names(tp_names)
+  head(tp_names); class(tp_names); names(tp_names)
   # COLNAMES: error|nameid|scientificname|scientificnamewithauthors|family|
   #           rankabbreviation|nomenclaturestatusname|author|displayreference|
   #           displaydate|totalrows|nomenclaturestatusid|symbol|
@@ -185,7 +188,7 @@ tp_syn <- synonyms(species_names, db="tropicos")
 
 # !! STOP BEFORE RUNNING NEXT SECTION -- YOU MAY HAVE TO ANSWER SOME PROMPTS
 
-# remove speices/taxa that did not have any synonyms,
+# remove species/taxa that did not have any synonyms,
 #   create data frame of synonyms,
 #   and add column stating which database it came from
 tp_syn_df <- synonyms.compiled(tp_syn,"tropicos")
@@ -270,7 +273,7 @@ itis_syn <- synonyms(taxa_names, db="itis")
 
 # !! STOP BEFORE RUNNING NEXT SECTION -- YOU MAY HAVE TO ANSWER SOME PROMPTS
 
-# remove speices/taxa that did not have any synonyms,
+# remove species/taxa that did not have any synonyms,
 #   create data frame of synonyms,
 #   and add column stating which database it came from
 itis_syn_df <- synonyms.compiled(itis_syn,"itis")
@@ -373,7 +376,7 @@ write.csv(tpl_names_noDup,"taxize_tpl_names_noDup.csv")
 
 # join with taxa list and remove non-matches
 tpl_all <- tpl_names_noDup %>% filter(tpl_names_noDup$taxon_name %in%
-  taxa_list_acc$taxon_name)
+  taxa_names)
 # write file
 write.csv(tpl_all,"taxize_tpl.csv")
 
@@ -386,7 +389,8 @@ write.csv(tpl_all,"taxize_tpl.csv")
 genera <- c("Quercus","Malus","Ulmus","Tilia")
 ipni_names <- data.frame()
 for(i in 1:length(genera)){
-  output_new <- ipni_search(genus=genera[i],output="extended") #family=,species=,infraspecies=
+  output_new <- ipni_search(genus=genera[i],output="extended")
+    #family=,species=,infraspecies=
   ipni_names <- rbind.fill(ipni_names,output_new)
 }
   head(ipni_names); class(ipni_names); names(ipni_names)
@@ -405,7 +409,7 @@ setnames(ipni_names,
     ipni_names$author)
   ipni_names$database <- "ipni"
   # keep only necessary columns
-  ipni_names<- ipni_names[,c("taxon_name","taxon_name_match","author",
+  ipni_names <- ipni_names[,c("taxon_name","taxon_name_match","author",
     "match_id","database","match_name_with_authors","family")]
 # write file
 write.csv(ipni_names,"taxize_ipni_names.csv")
@@ -419,19 +423,64 @@ write.csv(ipni_names,"taxize_ipni_names.csv")
 #write.csv(ipni_names_noDup,"taxize_ipni_names_noDup.csv")
 
 # join with taxa list and remove non-matches
-ipni_all <- ipni_names %>% filter(ipni_names$taxon_name %in%
-  taxa_list_acc$taxon_name)
+ipni_all <- ipni_names %>% filter(ipni_names$taxon_name %in% taxa_names)
 # write file
 write.csv(ipni_all,"taxize_ipni.csv")
+
+##
+### E) Taxonomic Name Resolution Service (TNRS)
+##
+
+# replace characters to match TNRS system
+taxa_names <- gsub(" X "," x ",taxa_names,fixed=T)
+taxa_names <- gsub(" ssp. "," subsp. ",taxa_names)
+
+## MATCH NAMES
+
+  # takes a while if lots of names
+chunked <- split(taxa_names,chunk(taxa_names,chunk.size=1))
+tnrs_names <- data.frame()
+for(i in 1:length(chunked)){
+  output_new <- tnrs(chunked[[i]])
+  tnrs_names <- rbind.fill(tnrs_names,output_new)
+  print(chunked[[i]])
+}
+chunked[[i]]
+#tnrs_names <- rbind.fill(tnrs_names,tnrs("Tilia monticolaa"))
+#tnrs_names <- rbind.fill(tnrs_names,tnrs("Quercus stellata var. margaretta"))
+  #head(tnrs_output); class(tnrs_output); names(tnrs_output)
+  # COLUMNS: submittedname|acceptedname|sourceid|score|
+  #          matchedname|authority|uri
+# standardize column names for joining later
+setnames(tnrs_names,
+  old = c("submittedname","matchedname","sourceid","authority","uri"),
+  new = c("taxon_name","taxon_name_match","source", "author","match_id"),
+  skip_absent=T)
+  #tnrs_output2 <- tnrs_output2[(-2)]
+  tnrs_names$database <- "tnrs"
+# write file
+write.csv(tnrs_names,"taxize_tnrs_names.csv")
+
+# remove names that aren't good matches
+tnrs_all <- tnrs_names[which(tnrs_names$score > 0.5),]# &
+                                 #tnrs_names$submittedname ==
+                                 #tnrs_names$matchedname),]
+# add column with authors
+tnrs_all$match_name_with_authors <- paste(
+  tnrs_all$taxon_name_match,tnrs_all$author)
+# write file
+write.csv(tnrs_all,"taxize_tnrs.csv")
 
 ########################
 # 3. Create master list
 ########################
 
 # create dataframe of all synonyms found
-datasets <- list(tp_all,itis_all,tpl_all,ipni_all)
+datasets <- list(tp_all,itis_all,tpl_all,ipni_all,tnrs_all)
 all_names <- Reduce(rbind.fill,datasets)
   names(all_names)
+# join with initial taxa list
+all_names <- full_join(all_names,taxa_list_acc)
 # add a space after every period, to standardize authors more
 all_names$match_name_with_authors <- gsub(".",". ",
   all_names$match_name_with_authors,fixed=T)
@@ -441,25 +490,31 @@ all_names$match_name_with_authors <- gsub(". )",".)",
   all_names$match_name_with_authors,fixed=T)
 all_names$match_name_with_authors <- gsub("(pro sp.)","",
   all_names$match_name_with_authors,fixed=T)
+# replace accented characters
+all_names$match_name_with_authors <- stringi::stri_trans_general(
+  all_names$match_name_with_authors, "Latin-ASCII")
+# fill taxon_name column for hybrid_no_x taxa
+#all_names[which(all_names$name_type=="hybrid_no_x"),]$taxon_name <-
+#  gsub(" "," x ",all_names[which(
+#    all_names$name_type=="hybrid_no_x"),]$taxon_name_match)
 # keep unique values and create
 #   "ref" col of all databases with duplicates and
 #   "status" col of all acceptance statuses of duplicates
 unique_names <- all_names %>% group_by(taxon_name,taxon_name_match,
-  match_name_with_authors) %>%
+  taxon_name,match_name_with_authors) %>%
   summarize(ref = paste(database,collapse = ','),
-  status = paste(acceptance,collapse = ',')) %>%
+  status = paste(acceptance,collapse = ','),
+  ref_id = paste(match_id,collapse = ',')) %>%
   ungroup()
 str(unique_names)
 # order rows
 unique_names <- setorder(unique_names,"taxon_name")
 unique_names <- setorder(unique_names,"taxon_name_match")
-# join with initial taxa list
-colnames(taxa_list_acc)[colnames(taxa_list_acc)=="taxon_name"] <-
-  "taxon_name_match"
-all_data <- full_join(unique_names,taxa_list_acc)
 # write CSV file of all names
-write.csv(all_data,"taxize_all_names_raw2.csv")
+write.csv(unique_names,"taxize_all_names_raw2.csv")
 
+# join with initial taxa list again
+all_data <- full_join(unique_names,taxa_list_acc)
 # separate out taxon_name_match
 all_data2 <- all_data %>% separate("taxon_name_match",
   c("genus","species","infra_rank","infra_name"),sep=" ",extra="warn",
@@ -476,10 +531,25 @@ all_data4 <- setdiff(all_data3,all_data3[which(
   (all_data3$status == "synonym" | all_data3$status == "synonym,synonym") &
   all_data3$dup == T),])
   nrow(all_data4)
-# fix status column
-all_data4$status <- gsub("ipni,ipni","ipni",all_data4$status)
+all_data4 <- all_data4[,(-19)]
+# standardize status column
+all_data4$status <- gsub(",NA","",all_data4$status)
+all_data4$status_standard <- as.character(all_data4$status)
+unique(all_data4$status)
+all_data4$status_standard <- mgsub(all_data4$status_standard,
+  c("not accepted","nom. rej."),"rejected")
+all_data4$status_standard <- mgsub(all_data4$status_standard,
+  c("Unresolved","No opinion","NA"),"no opinion")
+all_data4$status_standard <- mgsub(all_data4$status_standard,
+  c("Accepted","Legitimate","valid","nom. cons."),"accepted")
+all_data4$status_standard[which(is.na(all_data4$status_standard))] <-
+  "no opinion"
+unique(all_data4$status_standard)
 # write tile
-write.csv(all_data4,"taxize_all_names.csv")
+write.csv(all_data4,"taxize_all_names5.csv")
+
+###### group rows by taxon_name_match; look at "ref" and "status_standard" col;
+#      keep best name (accepted or most sources)
 
 ####################################
 # 4. Create master target taxa list
@@ -490,7 +560,6 @@ write.csv(all_data4,"taxize_all_names.csv")
 #   2) "taxon_name" (synonym name or accepted name,for accepted taxa)
 #   3) "orig_list" (part of accepted list, synonym, other category)
 # save the file as "target_taxa_inclu_syn.csv"
-
 
 
 
@@ -604,6 +673,21 @@ write.csv(unique_children,"taxize_children.csv")
 ########
 ### Taxonomic Name Resolution Service (TNRS)
 ########
+
+taxa_names <- taxa_list_acc[which(taxa_list_acc$yes_no == "match"),]
+  nrow(taxa_names)
+taxa_names <- taxa_names[,1]; taxa_names
+
+
+chunked <- split(taxa_names,chunk(taxa_names,chunk.size=1))
+tnrs_names <- data.frame()
+for(i in 497:length(chunked)){
+  output_new <- tnrs(chunked[[i]])
+  tnrs_names <- rbind.fill(tnrs_names,output_new)
+  print(chunked[[i]])
+}
+chunked[[i]]
+# SKIPPED: Tilia monticola, Quercus stellata var. margaretta
 
   # takes a while if lots of names
 tnrs_output <- tnrs(taxa_names)
