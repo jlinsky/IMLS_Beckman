@@ -1,12 +1,15 @@
-### Author: Emily Beckman  ###  Date: 10/17/19
-                                                                               |
+### Author: Emily Beckman  ###  Date: 10/17/19                                 |
+
 ### DESCRIPTION:
   # This script takes a list of taxa and uses the taxize package to pull
-  # taxonomic information from multiple databases.
+  #   taxonomic information from multiple databases
   # Main information pulled includes:
-    # - Synonyms from Tropicos and Integrated Taxonomic Information
-    #   Service (ITIS), and The Plant List (TPL)
-  # The outputs can then be used to create a final "target_taxa_inclu_syn.csv"
+    # - Acceptance and authors from Tropicos and Integrated Taxonomic
+    #   Information Service (ITIS), and The Plant List (TPL)
+    # - Authors from International Plant Names Index (IPNI) and Taxonomic
+    #   Name Resolution Service (TNRS)
+    # - Synonyms from Tropicos and ITIS
+  # The output can then be used to create a final "target_taxa_inclu_syn.csv"
   #   file by hand
 
 ### INPUTS:
@@ -19,22 +22,11 @@
       #    than one source list, etc.)
 
 ### OUTPUTS:
-
-    # taxize_tropicos_names.csv
-    # taxize_tropicos_names_noDup.csv
-    # taxize_tropicos_syn.csv
     # taxize_tropicos.csv
-
-    # taxize_itis_names.csv
-    # taxize_itis_names_noDup.csv
-    # taxize_itis_syn.csv
     # taxize_itis.csv
-
-    # taxize_tpl_names.csv
-    # taxize_tpl_names_noDup.csv
     # taxize_tpl.csv
-
-    # taxize_all_names_raw.csv
+    # taxize_ipni.csv
+    # taxize_tnrs.csv
   ### taxize_all_names.csv
 
 #################
@@ -87,7 +79,7 @@ setwd("./Desktop")
 ####################
 
 # read in taxa list
-taxa_list_acc <- read.csv("target_taxa2.csv", header = T, na.strings=c("","NA"),
+taxa_list_acc <- read.csv("target_taxa.csv", header = T, na.strings=c("","NA"),
   colClasses="character"); nrow(taxa_list_acc)
 
 # create list of target taxa names
@@ -123,7 +115,6 @@ unique(species_only)
     # TROPICOS_KEY='________' # paste this in
 
 # Tropicos does not search for infrataxa, so we will use species list
-
 # replace characters to match Tropicos system
 species_names <- gsub(" x "," × ",species_names,fixed=T)
 
@@ -136,7 +127,7 @@ for(i in 1:length(species_names)){
   output_new$taxon_name <- species_names[[i]]
   tp_names <- rbind.fill(tp_names,output_new)
 }
-  head(tp_names); class(tp_names); names(tp_names)
+  #head(tp_names); class(tp_names); names(tp_names)
   # COLNAMES: error|nameid|scientificname|scientificnamewithauthors|family|
   #           rankabbreviation|nomenclaturestatusname|author|displayreference|
   #           displaydate|totalrows|nomenclaturestatusid|symbol|
@@ -156,7 +147,7 @@ tp_names$database <- "tropicos"
 tp_names[] <- lapply(tp_names, function(x) gsub(" × "," x ", x))
 tp_names[] <- lapply(tp_names, function(x) gsub(" fo. "," f. ", x))
 # write file
-write.csv(tp_names,"taxize_tropicos_names.csv")
+#write.csv(tp_names,"taxize_tropicos_names.csv")
 
 # remove duplicates except those matching legitimate names
 tp_names_noDup <- tp_names
@@ -180,7 +171,7 @@ tp_names_noDup <- tp_names_noDup[,(-10)]
 tp_names_noDup$match_name_with_authors <- paste(
   tp_names_noDup$taxon_name_match,tp_names_noDup$author)
 # write file
-write.csv(tp_names_noDup,"taxize_tropicos_names_noDup.csv")
+#write.csv(tp_names_noDup,"taxize_tropicos_names_noDup.csv")
 
 ## GET SYNONYMS
 
@@ -203,7 +194,7 @@ tp_syn_df$acceptance <- "synonym"
 tp_syn_df[] <- lapply(tp_syn_df, function(x) gsub(" × "," x ", x))
 tp_syn_df[] <- lapply(tp_syn_df, function(x) gsub(" fo. "," f. ", x))
 # write file
-write.csv(tp_syn_df,"taxize_tropicos_syn.csv")
+#write.csv(tp_syn_df,"taxize_tropicos_syn.csv")
 
 ## STACK ALL DATA
 
@@ -241,7 +232,7 @@ setnames(itis_names,
 itis_names[] <- lapply(itis_names, function(x) gsub(" X "," x ", x))
 itis_names[] <- lapply(itis_names, function(x) gsub(" ssp. "," subsp. ", x))
 # write file
-write.csv(itis_names,"itis_names.csv")
+#write.csv(itis_names,"itis_names.csv")
 
 # remove duplicates except those matching legitimate names
 itis_names_noDup <- itis_names
@@ -265,7 +256,7 @@ itis_names_noDup <- itis_names_noDup[,(-7)]
 itis_names_noDup$match_name_with_authors <- paste(
   itis_names_noDup$taxon_name_match,itis_names_noDup$author)
 # write file
-write.csv(itis_names_noDup,"taxize_itis_names_noDup.csv")
+#write.csv(itis_names_noDup,"taxize_itis_names_noDup.csv")
 
 ## GET SYNONYMS
 
@@ -298,7 +289,7 @@ itis_syn_df[] <- lapply(itis_syn_df, function(x) gsub(" ssp. "," subsp. ", x))
 itis_syn_df <- itis_syn_df[which(itis_syn_df$taxon_name !=
   itis_syn_df$taxon_name_match),]
 # write file
-write.csv(itis_syn_df,"taxize_itis_syn.csv")
+#write.csv(itis_syn_df,"taxize_itis_syn.csv")
 
 ## STACK ALL DATA
 
@@ -361,7 +352,7 @@ setnames(tpl_names,
     "database","acceptance","match_name_with_authors","family","source")]
     colnames(tpl_names)
 # write file
-write.csv(tpl_names,"taxize_tpl_names.csv")
+#write.csv(tpl_names,"taxize_tpl_names.csv")
 
 # remove duplicates
 tpl_names_noDup <- tpl_names
@@ -372,7 +363,7 @@ tpl_names_noDup <- setdiff(tpl_names_noDup,tpl_names_noDup[
 # remove dup column
 tpl_names_noDup <- tpl_names_noDup[,(-10)]
 # write file
-write.csv(tpl_names_noDup,"taxize_tpl_names_noDup.csv")
+#write.csv(tpl_names_noDup,"taxize_tpl_names_noDup.csv")
 
 # join with taxa list and remove non-matches
 tpl_all <- tpl_names_noDup %>% filter(tpl_names_noDup$taxon_name %in%
@@ -412,9 +403,9 @@ setnames(ipni_names,
   ipni_names <- ipni_names[,c("taxon_name","taxon_name_match","author",
     "match_id","database","match_name_with_authors","family")]
 # write file
-write.csv(ipni_names,"taxize_ipni_names.csv")
+#write.csv(ipni_names,"taxize_ipni_names.csv")
 
-# remove duplicates !! VERSION NUMBER THIS IS ARBITRARY ??
+# remove duplicates ?? BUT VERSION NUMBER IS ARBITRARY ??
   # sort by version and remove duplicates
   #ipni_names_noDup <- setorder(ipni_names,-version,na.last=T)
   #ipni_names_noDup <- distinct(ipni_names_noDup,taxon_name,.keep_all=T)
@@ -459,7 +450,7 @@ setnames(tnrs_names,
   #tnrs_output2 <- tnrs_output2[(-2)]
   tnrs_names$database <- "tnrs"
 # write file
-write.csv(tnrs_names,"taxize_tnrs_names.csv")
+#write.csv(tnrs_names,"taxize_tnrs_names.csv")
 
 # remove names that aren't good matches
 tnrs_all <- tnrs_names[which(tnrs_names$score > 0.5),]# &
@@ -481,6 +472,7 @@ all_names <- Reduce(rbind.fill,datasets)
   names(all_names)
 # join with initial taxa list
 all_names <- full_join(all_names,taxa_list_acc)
+
 # add a space after every period, to standardize authors more
 all_names$match_name_with_authors <- gsub(".",". ",
   all_names$match_name_with_authors,fixed=T)
@@ -493,10 +485,12 @@ all_names$match_name_with_authors <- gsub("(pro sp.)","",
 # replace accented characters
 all_names$match_name_with_authors <- stringi::stri_trans_general(
   all_names$match_name_with_authors, "Latin-ASCII")
+
 # fill taxon_name column for hybrid_no_x taxa
 #all_names[which(all_names$name_type=="hybrid_no_x"),]$taxon_name <-
 #  gsub(" "," x ",all_names[which(
 #    all_names$name_type=="hybrid_no_x"),]$taxon_name_match)
+
 # keep unique values and create
 #   "ref" col of all databases with duplicates and
 #   "status" col of all acceptance statuses of duplicates
@@ -511,7 +505,7 @@ str(unique_names)
 unique_names <- setorder(unique_names,"taxon_name")
 unique_names <- setorder(unique_names,"taxon_name_match")
 # write CSV file of all names
-write.csv(unique_names,"taxize_all_names_raw2.csv")
+#write.csv(unique_names,"taxize_all_names_raw.csv")
 
 # join with initial taxa list again
 all_data <- full_join(unique_names,taxa_list_acc)
@@ -546,7 +540,7 @@ all_data4$status_standard[which(is.na(all_data4$status_standard))] <-
   "no opinion"
 unique(all_data4$status_standard)
 # write tile
-write.csv(all_data4,"taxize_all_names5.csv")
+write.csv(all_data4,"taxize_all_names.csv")
 
 ###### group rows by taxon_name_match; look at "ref" and "status_standard" col;
 #      keep best name (accepted or most sources)
