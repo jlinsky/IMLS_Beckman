@@ -1,11 +1,14 @@
-### Author: Emily Beckman  ###  Date: 07/12/19
+### Author: Emily Beckman  ###  Date: 02/05/2020                                |
 
 ### DESCRIPTION:
-  # This script provides instructions and scripts for downloading and compiling wild occurrence points from:
-    # GBIF
-    # Herbaria Consortium (SERNEC, SEINet, etc.)
-    # iDigBio occurrence
-    # FIA
+  # This script provides instructions and code chunks for downloading and
+  #   compiling wild occurrence points from:
+    # GLOBAL DATABASES
+      # Global Biodiversity Information Facility (GBIF)
+      # Integrated Digitized Biocollections (iDigBio)
+    # NATIONAL DATABASES
+      # U.S. Herbaria Consortium (SERNEC, SEINet, etc.)
+      # Forest Inventory and Analysis (FIA) Program of the USDA Forest Service
 
 ### INPUT:
     # list of target species [sp_list_joined.csv], which was the output from XXXXXXX_compile_species_list

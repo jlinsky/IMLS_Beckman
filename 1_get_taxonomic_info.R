@@ -545,15 +545,9 @@ write.csv(all_data4,"taxize_all_names.csv")
 ###### group rows by taxon_name_match; look at "ref" and "status_standard" col;
 #      keep best name (accepted or most sources)
 
-####################################
-# 4. Create master target taxa list
-####################################
-
-# go through output BY HAND and create a CSV file with three col:
-#   1) "taxon_name_acc" (accepted name)
-#   2) "taxon_name" (synonym name or accepted name,for accepted taxa)
-#   3) "orig_list" (part of accepted list, synonym, other category)
-# save the file as "target_taxa_inclu_syn.csv"
+################################
+# 4. Create final list by hand
+################################
 
 
 
@@ -571,6 +565,7 @@ write.csv(all_data4,"taxize_all_names.csv")
 
 
 
+# <<<< OTHER RANDOM CODE BITS/FUNCTIONS NOT USING NOW >>>> #
 
 ################################
 # Find children for target taxa
@@ -594,13 +589,8 @@ children.compiled <- function(child_output,db_name,greater_than){
   return(child_output_df)
 }
 
-##
-### B) Integrated Taxonomic Information Service (ITIS)
-##
-
 # replace hybrid character to match ITIS system
 species_names <- gsub(" × "," X ",species_names,fixed=T)
-
 # get children names (var. and subsp.)
 children_itis <- children(species_names, db="itis")
 
@@ -614,6 +604,7 @@ colnames(children_itis_df)
 
 # write file
 write.csv(children_itis_df,"taxize_itis_children.csv")
+
 
 ##
 ### C) Catalogue of Life
@@ -658,49 +649,9 @@ nrow(all_children); nrow(unique_children)
 write.csv(unique_children,"taxize_children.csv")
 
 
-
-#################################################
-# Get taxonomic information from various sources
-#################################################
-
-
-########
-### Taxonomic Name Resolution Service (TNRS)
-########
-
-taxa_names <- taxa_list_acc[which(taxa_list_acc$yes_no == "match"),]
-  nrow(taxa_names)
-taxa_names <- taxa_names[,1]; taxa_names
-
-
-chunked <- split(taxa_names,chunk(taxa_names,chunk.size=1))
-tnrs_names <- data.frame()
-for(i in 497:length(chunked)){
-  output_new <- tnrs(chunked[[i]])
-  tnrs_names <- rbind.fill(tnrs_names,output_new)
-  print(chunked[[i]])
-}
-chunked[[i]]
-# SKIPPED: Tilia monticola, Quercus stellata var. margaretta
-
-  # takes a while if lots of names
-tnrs_output <- tnrs(taxa_names)
-  head(tnrs_output)
-  class(tnrs_output) # data.frame
-  names(tnrs_output)
-  # COLUMNS: submittedname|acceptedname|sourceid|score|
-  #          matchedname|authority|uri
-tnrs_output2 <- tnrs_output
-#tnrs_output2 <- tnrs_output[which(tnrs_output$score > 0.5),]# &
-                                 #tnrs_output$submittedname ==
-                                 #tnrs_output$matchedname),]
-setnames(tnrs_output2,
-  old = c("submittedname","matchedname","sourceid","authority","uri","score"),
-  new = c("taxon_full_name","TNRS_taxon_full_name_match","TNRS_source",
-    "TNRS_author","TNRS_id","TNRS_score"),
-  skip_absent=T)
-  tnrs_output2 <- tnrs_output2[(-2)]
-write.csv(tnrs_output2,"tnrs_output.csv")
+################################################
+# Get taxonomic information from other sources
+################################################
 
 ########
 ### Global Names Resolver (GNR)
@@ -765,9 +716,9 @@ write.csv(gnr_output2,"gnr_output.csv")
 ### Catalague of Life (COL)
 # !!!!! CURRENT VERSION IS NOT WORKING
 
-#################################################
+#############################################
 # taxonomic information from various sources
-#################################################
+#############################################
 
 names(tnrs_output2)
 # TNRS: taxon_full_name,score,taxon_full_name_match,author,id,
@@ -790,20 +741,6 @@ names(tpl_output4)
 names(ipni_output4)
 # IPNI: taxon_full_name,id,authors,source(IPNI)
 # duplicates removed
-
-# read in saved datasets
-tnrs <- read.csv("tnrs_output.csv",header = T,colClasses="character")
-itis <- read.csv("itis_output_noDup.csv",header = T,colClasses="character")
-tp <- read.csv("tp_output_noDup.csv",header = T,colClasses="character")
-tpl <- read.csv("tpl_output_matched.csv",header = T,colClasses="character")
-ipni <- read.csv("ipni_output_matched.csv",header = T,colClasses="character")
-
-# join data
-data <- list(tnrs,itis,tp,tpl,ipni)
-joined <- reduce(data,full_join,by="taxon_full_name")
-
-
-
 
 #### DID NOT FIND THIS HELPFUL ####
 

@@ -13,11 +13,11 @@
   #     1_compile_taxa_list.R script
 
 ### OUTPUTS:
-  # 1. exsitu_compiled_raw.csv
-  # 2. exsitu_compiled_namesAdded.csv
-  # 3. exsitu_compiled_speciesFiltered.csv
-  # 4. exsitu_compiled_standardized.csv
-  # 5. exsitu_compiled_noDuplicates.csv
+  # 1. exsitu_compiled_Raw.csv
+  # 2. exsitu_compiled_StandardNames.csv
+  # 3. exsitu_compiled_TaxaMatched.csv
+  # 4. exsitu_compiled_Standardized.csv
+  # 5. exsitu_compiled_ReadyToGeolocate.csv
 
 
 #################
@@ -116,7 +116,7 @@ all_data <- as.data.frame(lapply(all_data, function(x) str_squish(x)),
 all_data[all_data == ""] <- NA
 
 # write raw CSV file
-write.csv(all_data,"exsitu_compiled_raw.csv")
+write.csv(all_data,"exsitu_compiled_Raw.csv")
 
 ######################################
 # 2. Standardize species name columns
