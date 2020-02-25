@@ -15,7 +15,7 @@
 ### INPUTS:
   # target_taxa.csv (list of target taxa)
     # columns:
-      # 1. "taxon_name" (genus, species, infra rank, and infra name, all
+      # 1. "taxon_name_match" (genus, species, infra rank, and infra name, all
       #    separated by one space each; hybrid symbol should be " x ", rather
       #    than "_" or "✕", and go between genus and species)
       # 2+ other (can say where name came from, if you are using more
@@ -79,27 +79,24 @@ setwd("./Desktop")
 ####################
 
 # read in taxa list
-taxa_list_acc <- read.csv("target_taxa.csv", header = T, na.strings=c("","NA"),
+taxa_list_acc <- read.csv("target_taxa2.csv", header = T, na.strings=c("","NA"),
   colClasses="character"); nrow(taxa_list_acc)
 
 # create list of target taxa names
-taxa_names <- taxa_list_acc[,1]; taxa_names
-  # use this instead if you want to select certain names
+taxa_names <- taxa_list_acc[,1]
+  # use this instead if you want to select names based on values in other col:
   #taxa_names <- taxa_list_acc[which(taxa_list_acc$can_match == "match"),]
-  #  nrow(taxa_names)
-  #taxa_names <- taxa_names[,1]; taxa_names
+  #taxa_names <- taxa_names[,1]
 
 # create list of target species names, with infraspecific taxa removed
 species_names <- taxa_names[
   !grepl(" var. ",taxa_names) &
   !grepl(" subsp.",taxa_names) &
   !grepl(" f. ",taxa_names)]
-unique(species_names)
 
 # create list of target species names only, with hybrids removed
 species_only <- species_names[
   !grepl(" x ",species_names)]
-unique(species_only)
 
 ###################################################
 # 2. Check names and find synonyms for target taxa
@@ -141,7 +138,6 @@ setnames(tp_names,
 # keep only necessary columns
 tp_names <- tp_names[,c("taxon_name","taxon_name_match","family",
   "source","match_id","acceptance","author","match_name_with_authors")]
-  colnames(tp_names)
 tp_names$database <- "tropicos"
 # replace characters in taxa names
 tp_names[] <- lapply(tp_names, function(x) gsub(" × "," x ", x))
@@ -183,12 +179,13 @@ tp_syn <- synonyms(species_names, db="tropicos")
 #   create data frame of synonyms,
 #   and add column stating which database it came from
 tp_syn_df <- synonyms.compiled(tp_syn,"tropicos")
+colnames(tp_syn_df)
 # standardize column names for joining later
 setnames(tp_syn_df,
   old = c("nameid","scientificname","scientificnamewithauthors"),
   new = c("match_id","taxon_name_match","match_name_with_authors"),
   skip_absent=T)
-  colnames(tp_syn_df)
+
 tp_syn_df$acceptance <- "synonym"
 # replace characters in taxa names
 tp_syn_df[] <- lapply(tp_syn_df, function(x) gsub(" × "," x ", x))
@@ -227,7 +224,7 @@ setnames(itis_names,
   old = c(".id","scientificName","nameUsage","tsn"),
   new = c("taxon_name","taxon_name_match","acceptance","match_id"),
   skip_absent=T)
-  itis_names$database <- "itis"
+itis_names$database <- "itis"
 # replace characters in taxa names
 itis_names[] <- lapply(itis_names, function(x) gsub(" X "," x ", x))
 itis_names[] <- lapply(itis_names, function(x) gsub(" ssp. "," subsp. ", x))
@@ -268,23 +265,22 @@ itis_syn <- synonyms(taxa_names, db="itis")
 #   create data frame of synonyms,
 #   and add column stating which database it came from
 itis_syn_df <- synonyms.compiled(itis_syn,"itis")
+colnames(itis_syn_df)
 # standardize column names for joining later
 setnames(itis_syn_df,
   old = c("syn_name","syn_tsn","syn_author"),
   new = c("taxon_name_match","match_id","author"),
   skip_absent=T)
-  colnames(itis_syn_df)
 # keep only necessary columns
 itis_syn_df <- itis_syn_df[,c("taxon_name","taxon_name_match","author",
   "match_id","database")]
-  colnames(itis_syn_df)
 itis_syn_df$acceptance <- "synonym"
-# add column with authors
-itis_syn_df$match_name_with_authors <- paste(
-  itis_syn_df$taxon_name_match,itis_syn_df$author)
 # replace characters in taxa names
 itis_syn_df[] <- lapply(itis_syn_df, function(x) gsub(" X "," x ", x))
 itis_syn_df[] <- lapply(itis_syn_df, function(x) gsub(" ssp. "," subsp. ", x))
+# add column with authors
+itis_syn_df$match_name_with_authors <- paste(
+  itis_syn_df$taxon_name_match,itis_syn_df$author)
 # remove records where taxa name and syn name are the same
 itis_syn_df <- itis_syn_df[which(itis_syn_df$taxon_name !=
   itis_syn_df$taxon_name_match),]
@@ -331,26 +327,26 @@ setnames(tpl_names,
   new = c("match_id","acceptance","score","source","author","family"),
   skip_absent=T)
   tpl_names$database <- "tpl"
-  # create concatenated taxon_name col
-  tpl_names <- unite(tpl_names, "taxon_name",
-    c(Genus,Species.hybrid.marker,Species,Infraspecific.rank,
-      Infraspecific.epithet), sep = " ", remove = F)
-  # get rid of NAs in concatenated taxon name
-  tpl_names$taxon_name <- mgsub(tpl_names$taxon_name,
-    c("NA "," NA"," NA"," NA"," NA"), "")
-  # replace hybrid character
-  tpl_names$taxon_name <- gsub(" × "," x ",
-    tpl_names$taxon_name,fixed=T)
-  # trim whitespace
-  tpl_names$taxon_name <- str_squish(tpl_names$taxon_name)
-  # fill other columns
-  tpl_names$taxon_name_match <- tpl_names$taxon_name
-  tpl_names$match_name_with_authors <- paste(tpl_names$taxon_name,
-    tpl_names$author)
-  # keep only necessary columns
-  tpl_names <- tpl_names[,c("taxon_name","taxon_name_match","author","match_id",
-    "database","acceptance","match_name_with_authors","family","source")]
-    colnames(tpl_names)
+# create concatenated taxon_name col
+tpl_names <- unite(tpl_names, "taxon_name",
+  c(Genus,Species.hybrid.marker,Species,Infraspecific.rank,
+    Infraspecific.epithet), sep = " ", remove = F)
+# get rid of NAs in concatenated taxon name
+tpl_names$taxon_name <- mgsub(tpl_names$taxon_name,
+  c("NA "," NA"," NA"," NA"," NA"), "")
+# replace hybrid character
+tpl_names$taxon_name <- gsub(" × "," x ",
+  tpl_names$taxon_name,fixed=T)
+# trim whitespace
+tpl_names$taxon_name <- str_squish(tpl_names$taxon_name)
+# fill other columns
+tpl_names$taxon_name_match <- tpl_names$taxon_name
+tpl_names$match_name_with_authors <- paste(tpl_names$taxon_name,
+  tpl_names$author)
+colnames(tpl_names)
+# keep only necessary columns
+tpl_names <- tpl_names[,c("taxon_name","taxon_name_match","author","match_id",
+  "database","acceptance","match_name_with_authors","family","source")]
 # write file
 #write.csv(tpl_names,"taxize_tpl_names.csv")
 
@@ -391,17 +387,18 @@ setnames(ipni_names,
   old = c("id","full_name_without_family_and_authors","authors"),
   new = c("match_id","taxon_name","author"),
   skip_absent=T)
-  # replace hybrid character to match IPNI system
-  ipni_names$taxon_name <- gsub(" × "," x ",
-    ipni_names$taxon_name,fixed=T)
-  # fill other columns
-  ipni_names$taxon_name_match <- ipni_names$taxon_name
-  ipni_names$match_name_with_authors <- paste(ipni_names$taxon_name,
-    ipni_names$author)
-  ipni_names$database <- "ipni"
-  # keep only necessary columns
-  ipni_names <- ipni_names[,c("taxon_name","taxon_name_match","author",
-    "match_id","database","match_name_with_authors","family")]
+# replace hybrid character to match IPNI system
+ipni_names$taxon_name <- gsub(" × "," x ",
+  ipni_names$taxon_name,fixed=T)
+# fill other columns
+ipni_names$taxon_name_match <- ipni_names$taxon_name
+ipni_names$match_name_with_authors <- paste(ipni_names$taxon_name,
+  ipni_names$author)
+ipni_names$database <- "ipni"
+colnames(ipni_names)
+# keep only necessary columns
+ipni_names <- ipni_names[,c("taxon_name","taxon_name_match","author",
+  "match_id","database","match_name_with_authors","family")]
 # write file
 #write.csv(ipni_names,"taxize_ipni_names.csv")
 
@@ -448,7 +445,7 @@ setnames(tnrs_names,
   new = c("taxon_name","taxon_name_match","source", "author","match_id"),
   skip_absent=T)
   #tnrs_output2 <- tnrs_output2[(-2)]
-  tnrs_names$database <- "tnrs"
+tnrs_names$database <- "tnrs"
 # write file
 #write.csv(tnrs_names,"taxize_tnrs_names.csv")
 
@@ -456,9 +453,18 @@ setnames(tnrs_names,
 tnrs_all <- tnrs_names[which(tnrs_names$score > 0.5),]# &
                                  #tnrs_names$submittedname ==
                                  #tnrs_names$matchedname),]
-# add column with authors
+# keep only necessary columns
+tnrs_all <- tnrs_all[,c("taxon_name","taxon_name_match","author","match_id",
+  "database","match_name_with_authors","source")]
+# add column with authors; remove records with no author
+tnrs_all$author <- gsub("^$",NA,tnrs_all$author)
+tnrs_all <- tnrs_all[which(!is.na(tnrs_all$author)),]
 tnrs_all$match_name_with_authors <- paste(
   tnrs_all$taxon_name_match,tnrs_all$author)
+# remove records where matched name is just genus
+for(i in 1:length(genera)){
+  tnrs_all <- tnrs_all[which(tnrs_all$taxon_name_match != genera[[i]]),]
+}
 # write file
 write.csv(tnrs_all,"taxize_tnrs.csv")
 
@@ -466,14 +472,36 @@ write.csv(tnrs_all,"taxize_tnrs.csv")
 # 3. Create master list
 ########################
 
+# read in datasets created above
+tp_all <- read.csv("taxize_tropicos.csv",header=T,na.strings=c("","NA"),
+  colClasses="character"); nrow(tp_all)
+itis_all <- read.csv("taxize_itis.csv",header=T,na.strings=c("","NA"),
+  colClasses="character"); nrow(itis_all)
+tpl_all <- read.csv("taxize_tpl.csv",header=T,na.strings=c("","NA"),
+  colClasses="character"); nrow(tpl_all)
+ipni_all <- read.csv("taxize_ipni.csv",header=T,na.strings=c("","NA"),
+  colClasses="character"); nrow(ipni_all)
+tnrs_all <- read.csv("taxize_tnrs.csv",header=T,na.strings=c("","NA"),
+  colClasses="character"); nrow(tnrs_all)
+
 # create dataframe of all synonyms found
 datasets <- list(tp_all,itis_all,tpl_all,ipni_all,tnrs_all)
 all_names <- Reduce(rbind.fill,datasets)
   names(all_names)
 # join with initial taxa list
 all_names <- full_join(all_names,taxa_list_acc)
+# fill "NA" taxon_name with accepted name
+#all_names[which(is.na(all_names$taxon_name)),]$taxon_name <-
+#  all_names[which(is.na(all_names$taxon_name)),]$taxon_name_acc
+# fill taxon_name col for cultivars
+#all_names[which(all_names$taxon_type == "cultivar"),]$taxon_name <-
+#  all_names[which(all_names$taxon_type == "cultivar"),]$taxon_name_acc
+# fill taxon_name column for hybrid_no_x taxa
+#all_names[which(all_names$name_type=="hybrid_no_x"),]$taxon_name <-
+#  all_names[which(all_names$name_type=="hybrid_no_x"),]$taxon_name_acc
 
-# add a space after every period, to standardize authors more
+# add a space after every period and fix some other inconsistencies,
+#  to standardize authors more
 all_names$match_name_with_authors <- gsub(".",". ",
   all_names$match_name_with_authors,fixed=T)
 all_names$match_name_with_authors <- str_squish(
@@ -486,10 +514,19 @@ all_names$match_name_with_authors <- gsub("(pro sp.)","",
 all_names$match_name_with_authors <- stringi::stri_trans_general(
   all_names$match_name_with_authors, "Latin-ASCII")
 
-# fill taxon_name column for hybrid_no_x taxa
-#all_names[which(all_names$name_type=="hybrid_no_x"),]$taxon_name <-
-#  gsub(" "," x ",all_names[which(
-#    all_names$name_type=="hybrid_no_x"),]$taxon_name_match)
+# standardize acceptance column & order by acceptance
+all_names$status_standard <- as.character(all_names$acceptance)
+  unique(all_names$status_standard)
+all_names$status_standard[which(is.na(all_names$status_standard))] <-
+  "no opinion"
+all_names$status_standard <- mgsub(all_names$status_standard,
+  c("not accepted","nom. rej."),"rejected")
+all_names$status_standard <- mgsub(all_names$status_standard,
+  c("Unresolved","No opinion","NA"),"no opinion")
+all_names$status_standard <- mgsub(all_names$status_standard,
+  c("Accepted","Legitimate","valid","nom. cons."),"accepted")
+unique(all_names$status_standard)
+all_names <- setorder(all_names,status_standard)
 
 # keep unique values and create
 #   "ref" col of all databases with duplicates and
@@ -497,50 +534,81 @@ all_names$match_name_with_authors <- stringi::stri_trans_general(
 unique_names <- all_names %>% group_by(taxon_name,taxon_name_match,
   taxon_name,match_name_with_authors) %>%
   summarize(ref = paste(database,collapse = ','),
-  status = paste(acceptance,collapse = ','),
+  status = paste(status_standard,collapse = ','),
   ref_id = paste(match_id,collapse = ',')) %>%
   ungroup()
 str(unique_names)
-# order rows
-unique_names <- setorder(unique_names,"taxon_name")
-unique_names <- setorder(unique_names,"taxon_name_match")
-# write CSV file of all names
-#write.csv(unique_names,"taxize_all_names_raw.csv")
+
+# final standardization of status column
+unique_names$status_standard <- unique_names$status
+  unique(unique_names$status_standard)
+unique_names$status_standard <- mgsub(unique_names$status_standard,
+  c("rejected,rejected","rejected,rejected"),"rejected")
+unique_names$status_standard <- mgsub(unique_names$status_standard,
+  c("no opinion,no opinion","no opinion,no opinion",
+    "no opinion,no opinion"),"no opinion")
+unique_names$status_standard <- mgsub(unique_names$status_standard,
+  c("accepted,accepted","accepted,accepted"),"accepted")
+unique_names$status_standard <- mgsub(unique_names$status_standard,
+  c("synonym,synonym"),"synonym")
+unique(unique_names$status_standard)
 
 # join with initial taxa list again
 all_data <- full_join(unique_names,taxa_list_acc)
 # separate out taxon_name_match
-all_data2 <- all_data %>% separate("taxon_name_match",
+all_data <- all_data %>% separate("taxon_name_match",
   c("genus","species","infra_rank","infra_name"),sep=" ",extra="warn",
   remove=F,fill="right")
-  nrow(all_data2)
-# remove forms
-all_data3 <- all_data2[which(is.na(all_data2$infra_rank) |
-  all_data2$infra_rank != "f."),]
-  nrow(all_data3)
-# remove records where same match name goes with more than one taxon_name
-all_data3$dup <- c(duplicated(all_data3$taxon_name_match,fromLast=T)
-  | duplicated(all_data3$taxon_name_match))
-all_data4 <- setdiff(all_data3,all_data3[which(
-  (all_data3$status == "synonym" | all_data3$status == "synonym,synonym") &
-  all_data3$dup == T),])
-  nrow(all_data4)
-all_data4 <- all_data4[,(-19)]
-# standardize status column
-all_data4$status <- gsub(",NA","",all_data4$status)
-all_data4$status_standard <- as.character(all_data4$status)
-unique(all_data4$status)
-all_data4$status_standard <- mgsub(all_data4$status_standard,
-  c("not accepted","nom. rej."),"rejected")
-all_data4$status_standard <- mgsub(all_data4$status_standard,
-  c("Unresolved","No opinion","NA"),"no opinion")
-all_data4$status_standard <- mgsub(all_data4$status_standard,
-  c("Accepted","Legitimate","valid","nom. cons."),"accepted")
-all_data4$status_standard[which(is.na(all_data4$status_standard))] <-
-  "no opinion"
-unique(all_data4$status_standard)
-# write tile
-write.csv(all_data4,"taxize_all_names.csv")
+nrow(all_data)
+# order rows
+all_data <- setorder(all_data,"taxon_name")
+all_data <- setorder(all_data,"taxon_name_match")
+# write file
+write.csv(all_data,"taxize_all_names_raw.csv")
+
+# IF DESIRED:
+  # remove forms
+all_data2 <- all_data[which(is.na(all_data$infra_rank) |
+  all_data$infra_rank != "f."),]
+nrow(all_data2)
+  # remove records where same match name goes with more than one taxon_name
+all_data2$dup <- c(duplicated(all_data2$taxon_name_match,fromLast=T)
+  | duplicated(all_data2$taxon_name_match))
+all_data2 <- setdiff(all_data2,all_data2[which(
+  all_data2$status == "synonym" & all_data2$dup == T),])
+nrow(all_data2)
+  # remove var. and subsp. records with species name already accounted for
+all_data2 <- all_data2 %>% separate("taxon_name",
+  c("genus2","species2"),sep=" ",extra="warn",remove=F,fill="right")
+all_data2 <- setdiff(all_data2,all_data2[which(
+  (all_data2$infra_rank == "var." | all_data2$infra_rank == "subsp.") &
+  all_data2$species2 == all_data2$species &
+  all_data2$status_standard == "synonym"),])
+nrow(all_data2)
+  # remove taxon_name_match duplicates that are not "accepted" status
+all_data2 <- setorder(all_data2,status_standard)
+all_data2 <- setdiff(all_data2,all_data2[which(
+  duplicated(all_data2$taxon_name_match) &
+  (!grepl("accepted",all_data2$status_standard))),])
+nrow(all_data2)
+
+# keep only necessary columns
+colnames(all_data2)
+all_data2 <- dplyr::select(all_data2,taxon_name,taxon_name_match,
+                    match_name_with_authors,ref,status_standard,
+                    ref_id:reference_only,-genus,-species,
+                    -infra_rank,-infra_name,-dup,-status,-genus2,
+                    -species2,-can_match)
+# final ordering of names
+all_data2 <- setorder(all_data2,taxon_name_match)
+# write file
+write.csv(all_data2,"taxize_all_names_new.csv")
+
+
+
+
+
+
 
 ###### group rows by taxon_name_match; look at "ref" and "status_standard" col;
 #      keep best name (accepted or most sources)
