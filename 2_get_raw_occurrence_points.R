@@ -7,18 +7,23 @@
       # Global Biodiversity Information Facility (GBIF)
       # Integrated Digitized Biocollections (iDigBio)
     # NATIONAL DATABASES
-      # U.S. Herbaria Consortium (SERNEC, SEINet, etc.)
+      # U.S. Herbaria Consortia (SERNEC, SEINet, etc.)
       # Forest Inventory and Analysis (FIA) Program of the USDA Forest Service
 
 ### INPUT:
-    # list of target species [sp_list_joined.csv], which was the output from XXXXXXX_compile_species_list
+  # target_taxa_with_syn.csv (list of target taxa)
+    # columns:
+      # 1. "taxon_name" (genus, species, infra rank, and infra name, all
+      #    separated by one space each; hybrid symbol should be " x ", rather
+      #    than "_" or "✕", and go between genus and species)
+      # 2. (optional) "taxon_name_acc" (accepted taxon name you have chosen)
+      # 3+ (optional) other data you want to keep with taxa info
 
 ### OUTPUTS:
     # gbif_raw.csv
     # herbaria_raw.csv
     # idigbio_raw.csv
     # fia_raw.csv
-
 
 #################
 ### LIBRARIES ###
@@ -27,94 +32,163 @@
 library(spocc)
 library(rgbif)
 
-
 ##############
 ### SCRIPT ###
 ##############
 
 setwd("./Desktop")
 
-##########
-# A. GBIF
-##########
+################################################################################
+# A) Global Biodiversity Information Facility (GBIF)
+################################################################################
 
+# read in taxa list
+taxon_list <- read.csv("Desiderata_withSyn_Feb2020.csv", header = T,
+  na.strings=c("","NA"), colClasses="character")
+#taxon_list <- taxon_list %>% filter(is.na(taxon_type) |
+#                                     taxon_type != "cultivar");nrow(taxon_list)
+# list of target taxon names
+taxon_names <- taxon_list[,1]
 
+# get GBIF taxon keys for all taxa in target list
+keys <- sapply(taxon_names,function(x) name_backbone(name=x)$speciesKey,
+  simplify = "array")
+# remove duplicate and NULL keys
+keys_nodup <- keys[!duplicated(keys) & keys != "NULL"]
+# create vector of keys as input into gbif download
+gbif_taxon_keys <- vector(mode="numeric")
+for(i in 2:length(keys_nodup)){
+  gbif_taxon_keys <- c(gbif_taxon_keys,keys_nodup[[i]][1])
+}; sort(gbif_taxon_keys)
 
-################################################
-# B. Herbaria Consortium (SERNEC, SEINet, etc.)
-################################################
+# download GBIF data (Darwin Core Archive format)
+gbif_download <- occ_download(
+                     pred_in("taxonKey", gbif_taxon_keys),
+                     pred_in("basisOfRecord", c("PRESERVED_SPECIMEN",
+                        "HUMAN_OBSERVATION","FOSSIL_SPECIMEN","OBSERVATION",
+                        "UNKNOWN","MACHINE_OBSERVATION","MATERIAL_SAMPLE",
+                        "LITERATURE")),
+                     #pred("hasCoordinate", TRUE),
+                     #pred("hasGeospatialIssue", FALSE),
+                     format = "DWCA", #"SIMPLE_CSV"
+                     user="ebeckman",pwd="Quercus51",
+                     email="ebeckman@mortonarb.org")
+# must wait for download to complete before running next line;
+# it may take a while (up to 3 hours) if you have a large taxa list;
+# you can check download status here: https://www.gbif.org/user/download
+
+# load gbif data just downloaded
+gbif_download # !!! PASTE "Download key" as first argument in next two lines !!!
+   # download to current working directory and unzip before reading in
+occ_download_get(key="0013834-200221144449610", overwrite=TRUE)
+unzip("0013834-200221144449610.zip")
+  # read in data
+gbif_raw <- fread("occurrence.txt",quote=""); unique(gbif_raw$taxonKey)
+# write file
+write.csv(gbif_raw, "gbif_raw.csv")
+
+################################################################################
+# B) U.S. Herbaria Consortia (SERNEC, SEINet, etc.)
+################################################################################
 
 # First, download raw data
   # Go to http://sernecportal.org/portal/collections/harvestparams.php
-  # Type your target genus name into the "scientific name" box and click "List Display"
-  # Click the Download Specimen Data button (arrow pointing down into a box) in the top right corner
+  # Type your target genus name into the "scientific name" box and click
+  #   "List Display"
+  # Click the Download Specimen Data button (arrow pointing down into a box),
+  #   in the top right corner
   # In the pop-up window, select the "Darwin Core" radio button,
-    # uncheck everything in the "Data Extensions:" section, and
-    # select the "UTF-8 (unicode)" radio button
-    # leave other fields as-is
+  #   uncheck everything in the "Data Extensions:" section, and
+  #   select the "UTF-8 (unicode)" radio button
+  #   leave other fields as-is
   # Click "Download Data"
 
-# If you have more than one target genus, repeat the above steps for the other genera
+# If you have more than one target genus, repeat the above steps for the
+#   other genera
 
-# Move all the zipped files you downloaded into a "sernec_read_in" folder within your wd
-# Unzip each file and pull the "occurrences.csv" file out into the "sernec_read_in" folder -- obviously "keep both" when prompted
+# Move all the zipped files you downloaded into a "sernec_read_in" folder
+#   within your working directory
+# Unzip each file and pull the "occurrences.csv" file out into the
+#   "sernec_read_in" folder -- obviously "keep both" when prompted;
+#   *this unzip step could eventually be coded in here....
 
-# Read in raw occurrence points
-file_list <- list.files(path = "sernec_read_in", pattern = ".csv", full.names = T)
-file_dfs <- lapply(file_list, read.csv, colClasses = "character",na.strings=c("","NA"),strip.white=T,fileEncoding="latin1")
-  length(file_dfs) #10
+# read in raw occurrence points
+file_list <- list.files(path = "sernec_read_in", pattern = ".csv",
+  full.names = T)
+file_dfs <- lapply(file_list, read.csv, colClasses = "character",
+  na.strings=c("","NA"),strip.white=T,fileEncoding="latin1")
+length(file_dfs) #10
 
-# Stack datasets to create one dataframe
+# stack datasets to create one dataframe
 sernec_raw <- data.frame()
 for(file in seq_along(file_dfs)){
   sernec_raw <- rbind(sernec_raw, file_dfs[[file]])
 }; nrow(sernec_raw) #135884
-  write.csv(sernec_raw, "sernec_raw.csv")
+# write file
+write.csv(sernec_raw, "sernec_raw.csv")
 
-
-#############
-# C. iDigBio
-#############
+################################################################################
+# C) Integrated Digitized Biocollections (iDigBio)
+################################################################################
 
 # First, download raw data
   # Go to https://www.idigbio.org/portal/search
-  # Type your target genus name into the "Scientific Name" box on the left hand side and
-    # check the "Must have map point" checkbox
-  # Click the "Download" tab, type in your email, and click the download button (down arrow within circle)
+  # Type your target genus name into the "Scientific Name" box on the left hand
+  #    side and check the "Must have map point" checkbox
+  # Click the "Download" tab, type in your email, and click the download button
+  #   (down arrow within circle)
 
-# If you have more than one target genus, repeat the above steps for the other genera
+# If you have more than one target genus, repeat the above steps for the
+#   other genera
 
-# Your downloads will pop up in the "Downloads" section; click "Click To Download" for each
+# Your downloads will pop up in the "Downloads" section;
+# click "Click To Download" for each
 
-# Move all the zipped files you downloaded into a "idigbio_read_in" folder within your wd
-# Unzip each file and pull the "occurrence.csv" file out into the "idigbio_read_in" folder -- obviously "keep both" when prompted
+# Move all the zipped files you downloaded into a "idigbio_read_in" folder
+#   within your working directory
+# Unzip each file and pull the "occurrence.csv" file out into the
+#   "idigbio_read_in" folder -- obviously "keep both" when prompted;
+#   *this unzip step could eventually be coded in here....
 
-# Read in raw occurrence points
-file_list <- list.files(path = "idigbio_read_in", pattern = ".csv", full.names = T)
-file_dfs <- lapply(file_list, read.csv, colClasses = "character",na.strings=c("","NA"),strip.white=T,fileEncoding="UTF-8")
-  length(file_dfs) #10
+# read in raw occurrence points
+file_list <- list.files(path = "idigbio_read_in", pattern = ".csv",
+  full.names = T)
+file_dfs <- lapply(file_list, read.csv, colClasses = "character",
+  na.strings=c("","NA"),strip.white=T,fileEncoding="UTF-8")
+length(file_dfs) #10
 
-# Stack datasets to create one dataframe
+# stack datasets to create one dataframe
 idigbio_raw <- data.frame()
 for(file in seq_along(file_dfs)){
   idigbio_raw <- rbind(idigbio_raw, file_dfs[[file]])
 }; nrow(idigbio_raw) #55062
-  write.csv(idigbio_raw, "idigbio_raw.csv")
+# write file
+write.csv(idigbio_raw, "idigbio_raw.csv")
 
-
-##########
-# D. FIA
-##########
+################################################################################
+# D) Forest Inventory and Analysis (FIA); Program of the USDA Forest Service
+################################################################################
 
 # First, download raw data
   # Go to https://apps.fs.usda.gov/fia/datamart/CSV/datamart_csv.html
-  # Either download the "TREE" file (e.g., "AL_TREE.csv") for each state (works well if you only need a few) or
-    # scroll to the bottom of the page and download "TREE.csv", which gives data for all states combined (9.73 GB)
+  # Either download the "TREE" file (e.g., "AL_TREE.csv") for each state
+  #   (works well if you only need a few) or scroll to the bottom of the
+  #   page and download "TREE.csv", which gives data for all states combined
+  #   (9.73 GB)
 
-# Read in list of target species
-species_list <- read.csv("species_list_joined_8_23.csv", header = T, na.strings=c("","NA"), colClasses="character")
-# Make a list of unique FIA species codes to select from the database
-species_codes <- sort(unique(species_list$fia_code))
+# read in taxa list
+taxon_list <- read.csv("Desiderata_withSyn_Feb2020.csv", header = T,
+  na.strings=c("","NA"), colClasses="character")
+#taxon_list <- taxon_list %>% filter(is.na(taxon_type) |
+#                                     taxon_type != "cultivar");nrow(taxon_list)
+# list of target taxon names
+taxon_names <- taxon_list[,1]
+
+# join taxa list to FIA species codes
+
+
+# make a list of unique FIA species codes to select from the database
+species_codes <- sort(unique(taxon_list$fia_code))
 
 setwd("./.."); setwd("./FIA/FIA_CSV_DATA")
 
