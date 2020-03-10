@@ -21,8 +21,8 @@
 
 ### OUTPUTS:
     # gbif_raw.csv
-    # herbaria_raw.csv
     # idigbio_raw.csv
+    # herbaria_raw.csv
     # fia_raw.csv
 
 #################
@@ -41,6 +41,12 @@ setwd("./Desktop")
 ################################################################################
 # A) Global Biodiversity Information Facility (GBIF)
 ################################################################################
+
+# GBIF account user information
+  # !!! FILL THIS IN WITH YOUR INFO:
+user <- "user"
+pwd <- "pwd"
+email <- "email@company.org"
 
 # read in taxa list
 taxon_list <- read.csv("Desiderata_withSyn_Feb2020.csv", header = T,
@@ -71,8 +77,8 @@ gbif_download <- occ_download(
                      #pred("hasCoordinate", TRUE),
                      #pred("hasGeospatialIssue", FALSE),
                      format = "DWCA", #"SIMPLE_CSV"
-                     user="ebeckman",pwd="Quercus51",
-                     email="ebeckman@mortonarb.org")
+                     user=user,pwd=pwd,
+                     email=email)
 # must wait for download to complete before running next line;
 # it may take a while (up to 3 hours) if you have a large taxa list;
 # you can check download status here: https://www.gbif.org/user/download
@@ -88,7 +94,45 @@ gbif_raw <- fread("occurrence.txt",quote=""); unique(gbif_raw$taxonKey)
 write.csv(gbif_raw, "gbif_raw.csv")
 
 ################################################################################
-# B) U.S. Herbaria Consortia (SERNEC, SEINet, etc.)
+# B) Integrated Digitized Biocollections (iDigBio)
+################################################################################
+
+# First, download raw data
+  # Go to https://www.idigbio.org/portal/search
+  # Type your target genus name into the "Scientific Name" box on the left hand
+  #    side and check the "Must have map point" checkbox
+  # Click the "Download" tab, type in your email, and click the download button
+  #   (down arrow within circle)
+
+# If you have more than one target genus, repeat the above steps for the
+#   other genera
+
+# Your downloads will pop up in the "Downloads" section;
+# click "Click To Download" for each
+
+# Move all the zipped files you downloaded into a "idigbio_read_in" folder
+#   within your working directory
+# Unzip each file and pull the "occurrence.csv" file out into the
+#   "idigbio_read_in" folder -- obviously "keep both" when prompted;
+#   *this unzip step could eventually be coded in here....
+
+# read in raw occurrence points
+file_list <- list.files(path = "idigbio_read_in", pattern = ".csv",
+  full.names = T)
+file_dfs <- lapply(file_list, read.csv, colClasses = "character",
+  na.strings=c("","NA"),strip.white=T,fileEncoding="UTF-8")
+length(file_dfs) #10
+
+# stack datasets to create one dataframe
+idigbio_raw <- data.frame()
+for(file in seq_along(file_dfs)){
+  idigbio_raw <- rbind(idigbio_raw, file_dfs[[file]])
+}; nrow(idigbio_raw) #55062
+# write file
+write.csv(idigbio_raw, "idigbio_raw.csv")
+
+################################################################################
+# C) U.S. Herbaria Consortia (SERNEC, SEINet, etc.)
 ################################################################################
 
 # First, download raw data
@@ -126,44 +170,6 @@ for(file in seq_along(file_dfs)){
 }; nrow(sernec_raw) #135884
 # write file
 write.csv(sernec_raw, "sernec_raw.csv")
-
-################################################################################
-# C) Integrated Digitized Biocollections (iDigBio)
-################################################################################
-
-# First, download raw data
-  # Go to https://www.idigbio.org/portal/search
-  # Type your target genus name into the "Scientific Name" box on the left hand
-  #    side and check the "Must have map point" checkbox
-  # Click the "Download" tab, type in your email, and click the download button
-  #   (down arrow within circle)
-
-# If you have more than one target genus, repeat the above steps for the
-#   other genera
-
-# Your downloads will pop up in the "Downloads" section;
-# click "Click To Download" for each
-
-# Move all the zipped files you downloaded into a "idigbio_read_in" folder
-#   within your working directory
-# Unzip each file and pull the "occurrence.csv" file out into the
-#   "idigbio_read_in" folder -- obviously "keep both" when prompted;
-#   *this unzip step could eventually be coded in here....
-
-# read in raw occurrence points
-file_list <- list.files(path = "idigbio_read_in", pattern = ".csv",
-  full.names = T)
-file_dfs <- lapply(file_list, read.csv, colClasses = "character",
-  na.strings=c("","NA"),strip.white=T,fileEncoding="UTF-8")
-length(file_dfs) #10
-
-# stack datasets to create one dataframe
-idigbio_raw <- data.frame()
-for(file in seq_along(file_dfs)){
-  idigbio_raw <- rbind(idigbio_raw, file_dfs[[file]])
-}; nrow(idigbio_raw) #55062
-# write file
-write.csv(idigbio_raw, "idigbio_raw.csv")
 
 ################################################################################
 # D) Forest Inventory and Analysis (FIA); Program of the USDA Forest Service
