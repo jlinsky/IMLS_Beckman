@@ -72,9 +72,9 @@ setwd("./raw_occurrence_point_data")
   # if you don't have account yet, go to https://www.gbif.org then click
   #   "Login" in top right corner, then click "Register"
   # !!! FILL THIS IN WITH YOUR INFO:
-user <- "ebeckman"
-pwd <- "Quercus51"
-email <- "ebeckman@mortonarb.org"
+user <- "username"
+pwd <- "password"
+email <- "email@email.org"
 
 # get GBIF taxon keys for all taxa in target list
 keys <- sapply(taxon_names,function(x) name_backbone(name=x)$speciesKey,
