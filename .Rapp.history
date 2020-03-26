@@ -1,0 +1,2497 @@
+length(test2) # this should be shorter#
+    test3 <- subset(df_out3$conifer,!is.na(df_out3$conifer))#
+    length(test3) # this should be longer
+#write.csv(df_out, file = "./Desktop/Arboretum/UStreeList_compare.csv")#
+write.csv(df_out2, file = "/Volumes/GoogleDrive/My Drive/US Tree List/List Compare/UStreeList_compare.csv")
+all_lists <- read.csv('/Volumes/GoogleDrive/My Drive/US Tree List/List Compare/all_species_lists.csv',#
+    as.is=TRUE, sep=',',row.names=NULL, strip.white = TRUE)
+head(all_lists)
+all_lists
+our_list <- all_lists[,1]
+our_list
+possible_syn <- all_lists[,2]#
+biotics <- all_lists[,3]#
+fna <- all_lists[,4]#
+gts <- all_lists[,5]#
+iucn <- all_lists[,6]#
+bonap <- all_lists[,7]#
+conifer <- all_lists[,8]#
+usdaplants <- all_lists[,9]#
+  # remove empty rows#
+  our_list <- our_list[!(our_list=="")]#
+  possible_syn <- possible_syn[!(possible_syn=="")]#
+  biotics <- biotics[!(biotics=="")]#
+  fna <- fna[!(fna=="")]#
+  gts <- gts[!(gts=="")]#
+  iucn <- iucn[!(iucn=="")]#
+  bonap <- bonap[!(bonap=="")]#
+  conifer <- conifer[!(conifer=="")]#
+  usdaplants <- usdaplants[!(usdaplants=="")]
+# search for postions of matches; create vector of indeces (only first match is recorded)#
+check_match <- function(vector,match_to) {#
+  matches <- vector()#
+  for (row in 1:length(match_to)) {#
+    pos <- grep(match_to[row], vector)#
+    if (length(pos) == 0) {#
+      matches <- append(matches, NA, after = length(matches))#
+    }#
+    else {#
+      matches <- append(matches, pos[1], after = length(matches))#
+    }#
+    print(length(pos))#
+  }#
+  return(matches)#
+}#
+#
+match_possible_syn <- check_match(possible_syn,our_list)#
+match_biotics <- check_match(biotics,our_list)#
+match_fna <- check_match(fna,our_list)#
+match_gts <- check_match(gts,our_list)#
+match_iucn <- check_match(iucn,our_list)#
+match_bonap <- check_match(bonap,our_list)#
+match_conifer <- check_match(conifer,our_list)#
+match_usdaplants <- check_match(usdaplants,our_list)
+align_matches <- function(matches,other_df,df_out,add_col) {#
+  df_out <- data.frame(df_out)#
+  for (row in 1:nrow(df_out)) {#
+    if (!is.na(matches[[row]])) {#
+      index <- as.numeric(matches[[row]])#
+      df_out[row,add_col] <- other_df[index]#
+    }#
+  }#
+  return(df_out)#
+}#
+#
+df_out <- our_list#
+df_out <- align_matches(match_possible_syn,possible_syn,df_out,2)#
+df_out <- align_matches(match_biotics,biotics,df_out,3)#
+df_out <- align_matches(match_fna,fna,df_out,4)#
+df_out <- align_matches(match_gts,gts,df_out,5)#
+df_out <- align_matches(match_iucn,iucn,df_out,6)#
+df_out <- align_matches(match_bonap,bonap,df_out,7)#
+df_out <- align_matches(match_conifer,conifer,df_out,8)#
+df_out <- align_matches(match_usdaplants,usdaplants,df_out,9)
+setnames(df_out,#
+         old=c("V2","V3","V4","V5","V6","V7","V8","V9"),#
+         new=c("possible_syn","biotics","fna","gts",#
+               "iucn","bonap","conifer","usdaplants"))#
+head(df_out)
+all_names <- paste(our_list,df_out$possible_syn,df_out$biotics,df_out$fna,df_out$gts,#
+                          df_out$iucn,df_out$bonap,df_out$conifer,df_out$usdaplants,sep=";")#
+x <- gsub("NA","",all_names)#
+x2 <- lapply(x,function(x) unlist(strsplit(x,";")))#
+x3 <- lapply(x2,unique)#
+x4 <- unlist(lapply(x3,paste,collapse=";"))#
+all_names2 <- gsub(";;",";",x4)#
+  head(all_names2)#
+df_out$all_names <- all_names2#
+all_names_spl <- strsplit(x4,";",fixed=T)#
+for (row in 1:length(all_names_spl)) {#
+  all_names_spl[[row]] <- subset(all_names_spl[[row]],all_names_spl[[row]]!="")#
+  for (i in 1:length(all_names_spl[[row]])) {#
+    print(i)#
+    all_names_spl[[row]][[i]] <- paste0(all_names_spl[[row]][[i]],";")#
+  }#
+}#
+  all_names_spl
+head(all_names2)
+all_names2
+check_match2 <- function(vector,match_to) {#
+  matches <- as.list(1:length(match_to))#
+  for (row in 1:length(match_to)) {#
+    lst <- c(rep("NA",length(match_to[[row]])))#
+    for (i in 1:length(lst)) {#
+      pos <- grep(match_to[[row]][[i]], vector)#
+      if (length(pos)) {#
+        lst[[i]] <- pos[[1]]#
+      }#
+    }#
+    lst <- subset(lst,lst!="NA")#
+    matches[[row]] <- lst[1]#
+  }#
+  return(matches)#
+}#
+#
+#vector <- c("Larix lyallii","Sapium glandulosum","Nolina bigel",";;;Sapium glandulosum;","e","f","Alnus rhombifolia")#
+#match_to <- match_to <- all_names_spl[1:10]#
+#lst <- as.list(rep("NA",length(match_to)))#
+#check_match2(vec,match_to)#
+#
+match2_possible_syn <- check_match2(possible_syn,all_names_spl)#
+match2_biotics <- check_match2(biotics,all_names_spl)#
+match2_fna <- check_match2(fna,all_names_spl)#
+match2_gts <- check_match2(gts,all_names_spl)#
+match2_iucn <- check_match2(iucn,all_names_spl)#
+match2_bonap <- check_match2(bonap,all_names_spl)#
+match2_conifer <- check_match2(conifer,all_names_spl)#
+match2_usdaplants <- check_match2(usdaplants,all_names_spl)#
+#
+# create dataframe with matches lined up#
+df_out2 <- all_names2#
+df_out2 <- align_matches(match2_possible_syn,possible_syn,df_out2,2)#
+df_out2 <- align_matches(match2_biotics,biotics,df_out2,3)#
+df_out2 <- align_matches(match2_fna,fna,df_out2,4)#
+df_out2 <- align_matches(match2_gts,gts,df_out2,5)#
+df_out2 <- align_matches(match2_iucn,iucn,df_out2,6)#
+df_out2 <- align_matches(match2_bonap,bonap,df_out2,7)#
+df_out2 <- align_matches(match2_conifer,conifer,df_out2,8)#
+df_out2 <- align_matches(match2_usdaplants,usdaplants,df_out2,9)#
+#
+setnames(df_out2,#
+         old=c("V2","V3","V4","V5","V6","V7","V8","V9"),#
+         new=c("possible_syn","biotics","fna","gts",#
+               "iucn","bonap","conifer","usdaplants"))#
+head(df_out2)
+all_names <- paste(our_list,df_out2$possible_syn,df_out2$biotics,df_out2$fna,df_out2$gts,#
+                          df_out2$iucn,df_out2$bonap,df_out2$conifer,df_out2$usdaplants,sep=";")#
+x <- gsub("NA","",all_names)#
+x2 <- lapply(x,function(x) unlist(strsplit(x,";")))#
+x3 <- lapply(x2,unique)#
+x4 <- unlist(lapply(x3,paste,collapse=";"))#
+all_names3 <- gsub(";;",";",x4)#
+  head(all_names3)#
+df_out2$all_names <- all_names3#
+all_names_spl2 <- strsplit(x4,";",fixed=T)#
+for (row in 1:length(all_names_spl2)) {#
+  all_names_spl2[[row]] <- subset(all_names_spl2[[row]],all_names_spl2[[row]]!="")#
+    for (i in 1:length(all_names_spl2[[row]])) {#
+      print(i)#
+      all_names_spl2[[row]][[i]] <- paste0(all_names_spl2[[row]][[i]],";")#
+    }#
+}#
+  all_names_spl2
+all_lists <- read.csv('/Volumes/GoogleDrive/My Drive/US Tree List/List Compare/all_species_lists.csv',#
+    as.is=TRUE, sep=',',row.names=NULL, strip.white = TRUE)#
+#
+# create vector from each individual column of df#
+our_list <- all_lists[,1]#
+possible_syn <- all_lists[,2]#
+biotics <- all_lists[,3]#
+fna <- all_lists[,4]#
+gts <- all_lists[,5]#
+iucn <- all_lists[,6]#
+bonap <- all_lists[,7]#
+conifer <- all_lists[,8]#
+usdaplants <- all_lists[,9]#
+  # remove empty rows#
+  our_list <- our_list[!(our_list=="")]#
+  possible_syn <- possible_syn[!(possible_syn=="")]#
+  biotics <- biotics[!(biotics=="")]#
+  fna <- fna[!(fna=="")]#
+  gts <- gts[!(gts=="")]#
+  iucn <- iucn[!(iucn=="")]#
+  bonap <- bonap[!(bonap=="")]#
+  conifer <- conifer[!(conifer=="")]#
+  usdaplants <- usdaplants[!(usdaplants=="")]#
+#
+# search for postions of matches; create vector of indeces (only first match is recorded)#
+check_match <- function(vector,match_to) {#
+  matches <- vector()#
+  for (row in 1:length(match_to)) {#
+    pos <- grep(match_to[row], vector)#
+    if (length(pos) == 0) {#
+      matches <- append(matches, NA, after = length(matches))#
+    }#
+    else {#
+      matches <- append(matches, pos[1], after = length(matches))#
+    }#
+    print(length(pos))#
+  }#
+  return(matches)#
+}#
+#
+match_possible_syn <- check_match(possible_syn,our_list)#
+match_biotics <- check_match(biotics,our_list)#
+match_fna <- check_match(fna,our_list)#
+match_gts <- check_match(gts,our_list)#
+match_iucn <- check_match(iucn,our_list)#
+match_bonap <- check_match(bonap,our_list)#
+match_conifer <- check_match(conifer,our_list)#
+match_usdaplants <- check_match(usdaplants,our_list)#
+#
+# create dataframe with matches lined up#
+align_matches <- function(matches,other_df,df_out,add_col) {#
+  df_out <- data.frame(df_out)#
+  for (row in 1:nrow(df_out)) {#
+    if (!is.na(matches[[row]])) {#
+      index <- as.numeric(matches[[row]])#
+      df_out[row,add_col] <- other_df[index]#
+    }#
+  }#
+  return(df_out)#
+}#
+#
+df_out <- our_list#
+df_out <- align_matches(match_possible_syn,possible_syn,df_out,2)#
+df_out <- align_matches(match_biotics,biotics,df_out,3)#
+df_out <- align_matches(match_fna,fna,df_out,4)#
+df_out <- align_matches(match_gts,gts,df_out,5)#
+df_out <- align_matches(match_iucn,iucn,df_out,6)#
+df_out <- align_matches(match_bonap,bonap,df_out,7)#
+df_out <- align_matches(match_conifer,conifer,df_out,8)#
+df_out <- align_matches(match_usdaplants,usdaplants,df_out,9)#
+#
+# rename columns#
+setnames(df_out,#
+         old=c("V2","V3","V4","V5","V6","V7","V8","V9"),#
+         new=c("possible_syn","biotics","fna","gts",#
+               "iucn","bonap","conifer","usdaplants"))#
+head(df_out)#
+#
+# create vector with all matched names for each species in our list#
+all_names <- paste(our_list,df_out$possible_syn,df_out$biotics,df_out$fna,df_out$gts,#
+                          df_out$iucn,df_out$bonap,df_out$conifer,df_out$usdaplants,sep=";")#
+x <- gsub("NA","",all_names)#
+x2 <- lapply(x,function(x) unlist(strsplit(x,";")))#
+x3 <- lapply(x2,unique)#
+x4 <- unlist(lapply(x3,paste,collapse=";"))#
+all_names2 <- gsub(";;",";",x4)#
+  head(all_names2)#
+df_out$all_names <- all_names2#
+all_names_spl <- strsplit(x4,";",fixed=T)#
+for (row in 1:length(all_names_spl)) {#
+  all_names_spl[[row]] <- subset(all_names_spl[[row]],all_names_spl[[row]]!="")#
+  for (i in 1:length(all_names_spl[[row]])) {#
+    print(i)#
+    all_names_spl[[row]][[i]] <- paste0(all_names_spl[[row]][[i]],";")#
+  }#
+}#
+  all_names_spl#
+#
+### Round 2 ####
+#
+# search for postions of matches to a vector of names w/in each element of the list#
+# create vector of indeces (only first match is recorded)#
+check_match2 <- function(vector,match_to) {#
+  matches <- as.list(1:length(match_to))#
+  for (row in 1:length(match_to)) {#
+    lst <- c(rep("NA",length(match_to[[row]])))#
+    for (i in 1:length(lst)) {#
+      pos <- grep(match_to[[row]][[i]], vector)#
+      if (length(pos)) {#
+        lst[[i]] <- pos[[1]]#
+      }#
+    }#
+    lst <- subset(lst,lst!="NA")#
+    matches[[row]] <- lst[1]#
+  }#
+  return(matches)#
+}#
+#
+#vector <- c("Larix lyallii","Sapium glandulosum","Nolina bigel",";;;Sapium glandulosum;","e","f","Alnus rhombifolia")#
+#match_to <- match_to <- all_names_spl[1:10]#
+#lst <- as.list(rep("NA",length(match_to)))#
+#check_match2(vec,match_to)#
+#
+match2_possible_syn <- check_match2(possible_syn,all_names_spl)#
+match2_biotics <- check_match2(biotics,all_names_spl)#
+match2_fna <- check_match2(fna,all_names_spl)#
+match2_gts <- check_match2(gts,all_names_spl)#
+match2_iucn <- check_match2(iucn,all_names_spl)#
+match2_bonap <- check_match2(bonap,all_names_spl)#
+match2_conifer <- check_match2(conifer,all_names_spl)#
+match2_usdaplants <- check_match2(usdaplants,all_names_spl)#
+#
+# create dataframe with matches lined up#
+df_out2 <- all_names2#
+df_out2 <- align_matches(match2_possible_syn,possible_syn,df_out2,2)#
+df_out2 <- align_matches(match2_biotics,biotics,df_out2,3)#
+df_out2 <- align_matches(match2_fna,fna,df_out2,4)#
+df_out2 <- align_matches(match2_gts,gts,df_out2,5)#
+df_out2 <- align_matches(match2_iucn,iucn,df_out2,6)#
+df_out2 <- align_matches(match2_bonap,bonap,df_out2,7)#
+df_out2 <- align_matches(match2_conifer,conifer,df_out2,8)#
+df_out2 <- align_matches(match2_usdaplants,usdaplants,df_out2,9)#
+#
+setnames(df_out2,#
+         old=c("V2","V3","V4","V5","V6","V7","V8","V9"),#
+         new=c("possible_syn","biotics","fna","gts",#
+               "iucn","bonap","conifer","usdaplants"))#
+head(df_out2)#
+#
+# create vector with all matched names for each species in our list#
+all_names <- paste(our_list,df_out2$possible_syn,df_out2$biotics,df_out2$fna,df_out2$gts,#
+                          df_out2$iucn,df_out2$bonap,df_out2$conifer,df_out2$usdaplants,sep=";")#
+x <- gsub("NA","",all_names)#
+x2 <- lapply(x,function(x) unlist(strsplit(x,";")))#
+x3 <- lapply(x2,unique)#
+x4 <- unlist(lapply(x3,paste,collapse=";"))#
+all_names3 <- gsub(";;",";",x4)#
+  head(all_names3)#
+df_out2$all_names <- all_names3#
+all_names_spl2 <- strsplit(x4,";",fixed=T)#
+for (row in 1:length(all_names_spl2)) {#
+  all_names_spl2[[row]] <- subset(all_names_spl2[[row]],all_names_spl2[[row]]!="")#
+    for (i in 1:length(all_names_spl2[[row]])) {#
+      print(i)#
+      all_names_spl2[[row]][[i]] <- paste0(all_names_spl2[[row]][[i]],";")#
+    }#
+}#
+  all_names_spl2#
+### TEST SUCCESS ####
+#
+for (i in 1:nrow(df_out)) {#
+  if (is.na(df_out$gts[[i]]) && !is.na(df_out2$gts[[i]])) {#
+    print(df_out2$gts[[i]]) # if nothing prints there may be a problem#
+  }#
+}#
+#
+test <- subset(df_out$conifer,!is.na(df_out$conifer))#
+  length(test) # this should be shorter#
+test2 <- subset(df_out2$conifer,!is.na(df_out2$conifer))#
+  length(test2) # this should be longer
+write.csv(df_out2, file = "/Volumes/GoogleDrive/My Drive/US Tree List/List Compare/UStreeList_compare.csv")
+library(plyr)#
+library(data.table)
+all_lists <- read.csv('/Volumes/GoogleDrive/My Drive/US Tree List/List Compare/all_species_lists.csv',#
+    as.is=TRUE, sep=',',row.names=NULL, strip.white = TRUE)
+our_list <- all_lists[,1]#
+possible_syn <- all_lists[,2]#
+biotics <- all_lists[,3]#
+fna <- all_lists[,4]#
+gts <- all_lists[,5]#
+iucn <- all_lists[,6]#
+bonap <- all_lists[,7]#
+conifer <- all_lists[,8]#
+usdaplants <- all_lists[,9]#
+  # remove empty rows#
+  our_list <- our_list[!(our_list=="")]#
+  possible_syn <- possible_syn[!(possible_syn=="")]#
+  biotics <- biotics[!(biotics=="")]#
+  fna <- fna[!(fna=="")]#
+  gts <- gts[!(gts=="")]#
+  iucn <- iucn[!(iucn=="")]#
+  bonap <- bonap[!(bonap=="")]#
+  conifer <- conifer[!(conifer=="")]#
+  usdaplants <- usdaplants[!(usdaplants=="")]
+check_match <- function(vector,match_to) {#
+  matches <- vector()#
+  for (row in 1:length(match_to)) {#
+    pos <- grep(match_to[row], vector)#
+    if (length(pos) == 0) {#
+      matches <- append(matches, NA, after = length(matches))#
+    }#
+    else {#
+      matches <- append(matches, pos[1], after = length(matches))#
+    }#
+    print(length(pos))#
+  }#
+  return(matches)#
+}#
+#
+match_possible_syn <- check_match(possible_syn,our_list)#
+match_biotics <- check_match(biotics,our_list)#
+match_fna <- check_match(fna,our_list)#
+match_gts <- check_match(gts,our_list)#
+match_iucn <- check_match(iucn,our_list)#
+match_bonap <- check_match(bonap,our_list)#
+match_conifer <- check_match(conifer,our_list)#
+match_usdaplants <- check_match(usdaplants,our_list)#
+#
+# create dataframe with matches lined up#
+align_matches <- function(matches,other_df,df_out,add_col) {#
+  df_out <- data.frame(df_out)#
+  for (row in 1:nrow(df_out)) {#
+    if (!is.na(matches[[row]])) {#
+      index <- as.numeric(matches[[row]])#
+      df_out[row,add_col] <- other_df[index]#
+    }#
+  }#
+  return(df_out)#
+}#
+#
+df_out <- our_list#
+df_out <- align_matches(match_possible_syn,possible_syn,df_out,2)#
+df_out <- align_matches(match_biotics,biotics,df_out,3)#
+df_out <- align_matches(match_fna,fna,df_out,4)#
+df_out <- align_matches(match_gts,gts,df_out,5)#
+df_out <- align_matches(match_iucn,iucn,df_out,6)#
+df_out <- align_matches(match_bonap,bonap,df_out,7)#
+df_out <- align_matches(match_conifer,conifer,df_out,8)#
+df_out <- align_matches(match_usdaplants,usdaplants,df_out,9)
+setnames(df_out,#
+         old=c("V2","V3","V4","V5","V6","V7","V8","V9"),#
+         new=c("possible_syn","biotics","fna","gts",#
+               "iucn","bonap","conifer","usdaplants"))#
+head(df_out)
+all_names <- paste(our_list,df_out$possible_syn,df_out$biotics,df_out$fna,df_out$gts,#
+                          df_out$iucn,df_out$bonap,df_out$conifer,df_out$usdaplants,sep=";")#
+x <- gsub("NA","",all_names)#
+x2 <- lapply(x,function(x) unlist(strsplit(x,";")))#
+x3 <- lapply(x2,unique)#
+x4 <- unlist(lapply(x3,paste,collapse=";"))#
+all_names2 <- gsub(";;",";",x4)#
+  head(all_names2)#
+df_out$all_names <- all_names2#
+all_names_spl <- strsplit(x4,";",fixed=T)#
+for (row in 1:length(all_names_spl)) {#
+  all_names_spl[[row]] <- subset(all_names_spl[[row]],all_names_spl[[row]]!="")#
+  for (i in 1:length(all_names_spl[[row]])) {#
+    print(i)#
+    all_names_spl[[row]][[i]] <- paste0(all_names_spl[[row]][[i]],";")#
+  }#
+}#
+  all_names_spl
+check_match2 <- function(vector,match_to) {#
+  matches <- as.list(1:length(match_to))#
+  for (row in 1:length(match_to)) {#
+    lst <- c(rep("NA",length(match_to[[row]])))#
+    for (i in 1:length(lst)) {#
+      pos <- grep(match_to[[row]][[i]], vector)#
+      if (length(pos)) {#
+        lst[[i]] <- pos[[1]]#
+      }#
+    }#
+    lst <- subset(lst,lst!="NA")#
+    matches[[row]] <- lst[1]#
+  }#
+  return(matches)#
+}#
+#
+#vector <- c("Larix lyallii","Sapium glandulosum","Nolina bigel",";;;Sapium glandulosum;","e","f","Alnus rhombifolia")#
+#match_to <- match_to <- all_names_spl[1:10]#
+#lst <- as.list(rep("NA",length(match_to)))#
+#check_match2(vec,match_to)#
+#
+match2_possible_syn <- check_match2(possible_syn,all_names_spl)#
+match2_biotics <- check_match2(biotics,all_names_spl)#
+match2_fna <- check_match2(fna,all_names_spl)#
+match2_gts <- check_match2(gts,all_names_spl)#
+match2_iucn <- check_match2(iucn,all_names_spl)#
+match2_bonap <- check_match2(bonap,all_names_spl)#
+match2_conifer <- check_match2(conifer,all_names_spl)#
+match2_usdaplants <- check_match2(usdaplants,all_names_spl)
+df_out2 <- all_names2#
+df_out2 <- align_matches(match2_possible_syn,possible_syn,df_out2,2)#
+df_out2 <- align_matches(match2_biotics,biotics,df_out2,3)#
+df_out2 <- align_matches(match2_fna,fna,df_out2,4)#
+df_out2 <- align_matches(match2_gts,gts,df_out2,5)#
+df_out2 <- align_matches(match2_iucn,iucn,df_out2,6)#
+df_out2 <- align_matches(match2_bonap,bonap,df_out2,7)#
+df_out2 <- align_matches(match2_conifer,conifer,df_out2,8)#
+df_out2 <- align_matches(match2_usdaplants,usdaplants,df_out2,9)#
+#
+setnames(df_out2,#
+         old=c("V2","V3","V4","V5","V6","V7","V8","V9"),#
+         new=c("possible_syn","biotics","fna","gts",#
+               "iucn","bonap","conifer","usdaplants"))#
+head(df_out2)
+all_names <- paste(our_list,df_out2$possible_syn,df_out2$biotics,df_out2$fna,df_out2$gts,#
+                          df_out2$iucn,df_out2$bonap,df_out2$conifer,df_out2$usdaplants,sep=";")#
+x <- gsub("NA","",all_names)#
+x2 <- lapply(x,function(x) unlist(strsplit(x,";")))#
+x3 <- lapply(x2,unique)#
+x4 <- unlist(lapply(x3,paste,collapse=";"))#
+all_names3 <- gsub(";;",";",x4)#
+  head(all_names3)#
+df_out2$all_names <- all_names3#
+all_names_spl2 <- strsplit(x4,";",fixed=T)#
+for (row in 1:length(all_names_spl2)) {#
+  all_names_spl2[[row]] <- subset(all_names_spl2[[row]],all_names_spl2[[row]]!="")#
+    for (i in 1:length(all_names_spl2[[row]])) {#
+      print(i)#
+      all_names_spl2[[row]][[i]] <- paste0(all_names_spl2[[row]][[i]],";")#
+    }#
+}#
+  all_names_spl2
+for (i in 1:nrow(df_out)) {#
+  if (is.na(df_out$gts[[i]]) && !is.na(df_out2$gts[[i]])) {#
+    print(df_out2$gts[[i]]) # if nothing prints there may be a problem#
+  }#
+}#
+#
+test <- subset(df_out$conifer,!is.na(df_out$conifer))#
+  length(test) # this should be shorter#
+test2 <- subset(df_out2$conifer,!is.na(df_out2$conifer))#
+  length(test2) # this should be longer
+match3_possible_syn <- check_match2(possible_syn,all_names_spl2)#
+  match3_biotics <- check_match2(biotics,all_names_spl2)#
+  match3_fna <- check_match2(fna,all_names_spl2)#
+  match3_gts <- check_match2(gts,all_names_spl2)#
+  match3_iucn <- check_match2(iucn,all_names_spl2)#
+  match3_bonap <- check_match2(bonap,all_names_spl2)#
+  match3_conifer <- check_match2(conifer,all_names_spl2)#
+#
+# create dataframe with matches lined up#
+  df_out3 <- all_names3#
+  df_out3 <- align_matches(match3_possible_syn,possible_syn,df_out3,2)#
+  df_out3 <- align_matches(match3_biotics,biotics,df_out3,3)#
+  df_out3 <- align_matches(match3_fna,fna,df_out3,4)#
+  df_out3 <- align_matches(match3_gts,gts,df_out3,5)#
+  df_out3 <- align_matches(match3_iucn,iucn,df_out3,6)#
+  df_out3 <- align_matches(match3_bonap,bonap,df_out3,7)#
+  df_out3 <- align_matches(match3_conifer,conifer,df_out3,8)#
+#
+  setnames(df_out3,#
+         old=c("V2","V3","V4","V5","V6","V7","V8"),#
+         new=c("possible_syn","biotics","fna","gts",#
+               "iucn","bonap","conifer"))#
+               head(df_out3)#
+#
+  # create vector with all matched names for each species in our list#
+  all_names <- paste(df_out3$possible_syn,df_out3$biotics,df_out3$fna,df_out3$gts,#
+                      df_out3$iucn,df_out3$bonap,df_out3$conifer,sep=";")#
+  x <- gsub("NA","",all_names)#
+  x2 <- lapply(x,function(x) unlist(strsplit(x,";")))#
+  x3 <- lapply(x2,unique)#
+  x4 <- unlist(lapply(x3,paste,collapse=";"))#
+  all_names4 <- gsub(";;",";",x4)#
+    head(all_names4)#
+  df_out3$all_names <- all_names4#
+  all_names_spl3 <- strsplit(x4,";",fixed=T)#
+  for (row in 1:length(all_names_spl3)) {#
+    all_names_spl3[[row]] <- subset(all_names_spl3[[row]],all_names_spl3[[row]]!="")#
+      for (i in 1:length(all_names_spl3[[row]])) {#
+        print(i)#
+        all_names_spl3[[row]][[i]] <- paste0(all_names_spl3[[row]][[i]],";")#
+      }#
+    }#
+    all_names_spl3#
+#
+    ### TEST SUCCESS ####
+#
+    for (i in 1:nrow(df_out)) {#
+      if (is.na(df_out2$iucn[[i]]) && !is.na(df_out3$iucn[[i]])) {#
+        print(df_out3$iucn[[i]]) # if nothing prints there may be a problem#
+      }#
+    }#
+#
+    length(test2) # this should be shorter#
+    test3 <- subset(df_out3$conifer,!is.na(df_out3$conifer))#
+    length(test3) # this should be longer
+write.csv(df_out2, file = "/Volumes/GoogleDrive/My Drive/US Tree List/List Compare/UStreeList_compare_new.csv")
+all_lists <- read.csv('/Volumes/GoogleDrive/My Drive/US Tree List/List Compare/all_species_lists.csv',#
+    as.is=TRUE, sep=',',row.names=NULL, strip.white = TRUE)
+nrow(all_species_lists)
+nrow(all_species)
+nrow(all_lists)
+our_list <- all_lists[,1]#
+possible_syn <- all_lists[,2]#
+biotics <- all_lists[,3]#
+fna <- all_lists[,4]#
+gts <- all_lists[,5]#
+iucn <- all_lists[,6]#
+bonap <- all_lists[,7]#
+conifer <- all_lists[,8]#
+usdaplants <- all_lists[,9]#
+  # remove empty rows#
+  our_list <- our_list[!(our_list=="")]#
+  possible_syn <- possible_syn[!(possible_syn=="")]#
+  biotics <- biotics[!(biotics=="")]#
+  fna <- fna[!(fna=="")]#
+  gts <- gts[!(gts=="")]#
+  iucn <- iucn[!(iucn=="")]#
+  bonap <- bonap[!(bonap=="")]#
+  conifer <- conifer[!(conifer=="")]#
+  usdaplants <- usdaplants[!(usdaplants=="")]
+length(our_list)
+check_match <- function(vector,match_to) {#
+  matches <- vector()#
+  for (row in 1:length(match_to)) {#
+    pos <- grep(match_to[row], vector)#
+    if (length(pos) == 0) {#
+      matches <- append(matches, NA, after = length(matches))#
+    }#
+    else {#
+      matches <- append(matches, pos[1], after = length(matches))#
+    }#
+    print(length(pos))#
+  }#
+  return(matches)#
+}#
+#
+match_possible_syn <- check_match(possible_syn,our_list)#
+match_biotics <- check_match(biotics,our_list)#
+match_fna <- check_match(fna,our_list)#
+match_gts <- check_match(gts,our_list)#
+match_iucn <- check_match(iucn,our_list)#
+match_bonap <- check_match(bonap,our_list)#
+match_conifer <- check_match(conifer,our_list)#
+match_usdaplants <- check_match(usdaplants,our_list)#
+#
+# create dataframe with matches lined up#
+align_matches <- function(matches,other_df,df_out,add_col) {#
+  df_out <- data.frame(df_out)#
+  for (row in 1:nrow(df_out)) {#
+    if (!is.na(matches[[row]])) {#
+      index <- as.numeric(matches[[row]])#
+      df_out[row,add_col] <- other_df[index]#
+    }#
+  }#
+  return(df_out)#
+}#
+#
+df_out <- our_list#
+df_out <- align_matches(match_possible_syn,possible_syn,df_out,2)#
+df_out <- align_matches(match_biotics,biotics,df_out,3)#
+df_out <- align_matches(match_fna,fna,df_out,4)#
+df_out <- align_matches(match_gts,gts,df_out,5)#
+df_out <- align_matches(match_iucn,iucn,df_out,6)#
+df_out <- align_matches(match_bonap,bonap,df_out,7)#
+df_out <- align_matches(match_conifer,conifer,df_out,8)#
+df_out <- align_matches(match_usdaplants,usdaplants,df_out,9)#
+#
+# rename columns#
+setnames(df_out,#
+         old=c("V2","V3","V4","V5","V6","V7","V8","V9"),#
+         new=c("possible_syn","biotics","fna","gts",#
+               "iucn","bonap","conifer","usdaplants"))#
+head(df_out)#
+#
+# create vector with all matched names for each species in our list#
+all_names <- paste(our_list,df_out$possible_syn,df_out$biotics,df_out$fna,df_out$gts,#
+                          df_out$iucn,df_out$bonap,df_out$conifer,df_out$usdaplants,sep=";")#
+x <- gsub("NA","",all_names)#
+x2 <- lapply(x,function(x) unlist(strsplit(x,";")))#
+x3 <- lapply(x2,unique)#
+x4 <- unlist(lapply(x3,paste,collapse=";"))#
+all_names2 <- gsub(";;",";",x4)#
+  head(all_names2)#
+df_out$all_names <- all_names2#
+all_names_spl <- strsplit(x4,";",fixed=T)#
+for (row in 1:length(all_names_spl)) {#
+  all_names_spl[[row]] <- subset(all_names_spl[[row]],all_names_spl[[row]]!="")#
+  for (i in 1:length(all_names_spl[[row]])) {#
+    print(i)#
+    all_names_spl[[row]][[i]] <- paste0(all_names_spl[[row]][[i]],";")#
+  }#
+}#
+  all_names_spl#
+#
+### Round 2 ####
+#
+# search for postions of matches to a vector of names w/in each element of the list#
+# create vector of indeces (only first match is recorded)#
+check_match2 <- function(vector,match_to) {#
+  matches <- as.list(1:length(match_to))#
+  for (row in 1:length(match_to)) {#
+    lst <- c(rep("NA",length(match_to[[row]])))#
+    for (i in 1:length(lst)) {#
+      pos <- grep(match_to[[row]][[i]], vector)#
+      if (length(pos)) {#
+        lst[[i]] <- pos[[1]]#
+      }#
+    }#
+    lst <- subset(lst,lst!="NA")#
+    matches[[row]] <- lst[1]#
+  }#
+  return(matches)#
+}#
+#
+#vector <- c("Larix lyallii","Sapium glandulosum","Nolina bigel",";;;Sapium glandulosum;","e","f","Alnus rhombifolia")#
+#match_to <- match_to <- all_names_spl[1:10]#
+#lst <- as.list(rep("NA",length(match_to)))#
+#check_match2(vec,match_to)#
+#
+match2_possible_syn <- check_match2(possible_syn,all_names_spl)#
+match2_biotics <- check_match2(biotics,all_names_spl)#
+match2_fna <- check_match2(fna,all_names_spl)#
+match2_gts <- check_match2(gts,all_names_spl)#
+match2_iucn <- check_match2(iucn,all_names_spl)#
+match2_bonap <- check_match2(bonap,all_names_spl)#
+match2_conifer <- check_match2(conifer,all_names_spl)#
+match2_usdaplants <- check_match2(usdaplants,all_names_spl)#
+#
+# create dataframe with matches lined up#
+df_out2 <- all_names2#
+df_out2 <- align_matches(match2_possible_syn,possible_syn,df_out2,2)#
+df_out2 <- align_matches(match2_biotics,biotics,df_out2,3)#
+df_out2 <- align_matches(match2_fna,fna,df_out2,4)#
+df_out2 <- align_matches(match2_gts,gts,df_out2,5)#
+df_out2 <- align_matches(match2_iucn,iucn,df_out2,6)#
+df_out2 <- align_matches(match2_bonap,bonap,df_out2,7)#
+df_out2 <- align_matches(match2_conifer,conifer,df_out2,8)#
+df_out2 <- align_matches(match2_usdaplants,usdaplants,df_out2,9)#
+#
+setnames(df_out2,#
+         old=c("V2","V3","V4","V5","V6","V7","V8","V9"),#
+         new=c("possible_syn","biotics","fna","gts",#
+               "iucn","bonap","conifer","usdaplants"))#
+head(df_out2)#
+#
+# create vector with all matched names for each species in our list#
+all_names <- paste(our_list,df_out2$possible_syn,df_out2$biotics,df_out2$fna,df_out2$gts,#
+                          df_out2$iucn,df_out2$bonap,df_out2$conifer,df_out2$usdaplants,sep=";")#
+x <- gsub("NA","",all_names)#
+x2 <- lapply(x,function(x) unlist(strsplit(x,";")))#
+x3 <- lapply(x2,unique)#
+x4 <- unlist(lapply(x3,paste,collapse=";"))#
+all_names3 <- gsub(";;",";",x4)#
+  head(all_names3)#
+df_out2$all_names <- all_names3#
+all_names_spl2 <- strsplit(x4,";",fixed=T)#
+for (row in 1:length(all_names_spl2)) {#
+  all_names_spl2[[row]] <- subset(all_names_spl2[[row]],all_names_spl2[[row]]!="")#
+    for (i in 1:length(all_names_spl2[[row]])) {#
+      print(i)#
+      all_names_spl2[[row]][[i]] <- paste0(all_names_spl2[[row]][[i]],";")#
+    }#
+}#
+  all_names_spl2
+for (i in 1:nrow(df_out)) {#
+  if (is.na(df_out$gts[[i]]) && !is.na(df_out2$gts[[i]])) {#
+    print(df_out2$gts[[i]]) # if nothing prints there may be a problem#
+  }#
+}#
+#
+test <- subset(df_out$conifer,!is.na(df_out$conifer))#
+  length(test) # this should be shorter#
+test2 <- subset(df_out2$conifer,!is.na(df_out2$conifer))#
+  length(test2) # this should be longer
+test <- subset(df_out$iucn,!is.na(df_out$iucn))#
+  length(test) # this should be shorter#
+test2 <- subset(df_out2$iucn,!is.na(df_out2$iucn))#
+  length(test2) # this should be longer
+write.csv(df_out2, file = "/Volumes/GoogleDrive/My Drive/US Tree List/List Compare/UStreeList_compare_new.csv")
+length(df_out)
+all_lists <- read.csv('/Volumes/GoogleDrive/My Drive/US Tree List/List Compare/all_species_lists.csv',#
+    as.is=TRUE, sep=',',row.names=NULL, strip.white = TRUE)
+length(all_lists)
+nrow(all_lists)
+our_list <- all_lists[,1]
+nrow(our_list)
+our_list <- our_list[!(our_list=="")]
+nrow(our_list)
+head(all_lists)
+our_list <- all_lists[,1]
+head(our_list)
+our_list <- our_list[!(our_list=="")]
+length(our_list)
+our_list <- all_lists[,1]#
+possible_syn <- all_lists[,2]#
+biotics <- all_lists[,3]#
+fna <- all_lists[,4]#
+gts <- all_lists[,5]#
+iucn <- all_lists[,6]#
+bonap <- all_lists[,7]#
+conifer <- all_lists[,8]#
+usdaplants <- all_lists[,9]#
+  # remove empty rows#
+  our_list <- our_list[!(our_list=="")]#
+  possible_syn <- possible_syn[!(possible_syn=="")]#
+  biotics <- biotics[!(biotics=="")]#
+  fna <- fna[!(fna=="")]#
+  gts <- gts[!(gts=="")]#
+  iucn <- iucn[!(iucn=="")]#
+  bonap <- bonap[!(bonap=="")]#
+  conifer <- conifer[!(conifer=="")]#
+  usdaplants <- usdaplants[!(usdaplants=="")]#
+#
+# search for postions of matches; create vector of indeces (only first match is recorded)#
+check_match <- function(vector,match_to) {#
+  matches <- vector()#
+  for (row in 1:length(match_to)) {#
+    pos <- grep(match_to[row], vector)#
+    if (length(pos) == 0) {#
+      matches <- append(matches, NA, after = length(matches))#
+    }#
+    else {#
+      matches <- append(matches, pos[1], after = length(matches))#
+    }#
+    print(length(pos))#
+  }#
+  return(matches)#
+}#
+#
+match_possible_syn <- check_match(possible_syn,our_list)#
+match_biotics <- check_match(biotics,our_list)#
+match_fna <- check_match(fna,our_list)#
+match_gts <- check_match(gts,our_list)#
+match_iucn <- check_match(iucn,our_list)#
+match_bonap <- check_match(bonap,our_list)#
+match_conifer <- check_match(conifer,our_list)#
+match_usdaplants <- check_match(usdaplants,our_list)#
+#
+# create dataframe with matches lined up#
+align_matches <- function(matches,other_df,df_out,add_col) {#
+  df_out <- data.frame(df_out)#
+  for (row in 1:nrow(df_out)) {#
+    if (!is.na(matches[[row]])) {#
+      index <- as.numeric(matches[[row]])#
+      df_out[row,add_col] <- other_df[index]#
+    }#
+  }#
+  return(df_out)#
+}
+length(df_out)
+nrow(df_out)
+df_out <- our_list#
+df_out <- align_matches(match_possible_syn,possible_syn,df_out,2)#
+df_out <- align_matches(match_biotics,biotics,df_out,3)#
+df_out <- align_matches(match_fna,fna,df_out,4)#
+df_out <- align_matches(match_gts,gts,df_out,5)#
+df_out <- align_matches(match_iucn,iucn,df_out,6)#
+df_out <- align_matches(match_bonap,bonap,df_out,7)#
+df_out <- align_matches(match_conifer,conifer,df_out,8)#
+df_out <- align_matches(match_usdaplants,usdaplants,df_out,9)
+nrow(df_out)
+setnames(df_out,#
+         old=c("V2","V3","V4","V5","V6","V7","V8","V9"),#
+         new=c("possible_syn","biotics","fna","gts",#
+               "iucn","bonap","conifer","usdaplants"))#
+head(df_out)#
+#
+# create vector with all matched names for each species in our list#
+all_names <- paste(our_list,df_out$possible_syn,df_out$biotics,df_out$fna,df_out$gts,#
+                          df_out$iucn,df_out$bonap,df_out$conifer,df_out$usdaplants,sep=";")#
+x <- gsub("NA","",all_names)#
+x2 <- lapply(x,function(x) unlist(strsplit(x,";")))#
+x3 <- lapply(x2,unique)#
+x4 <- unlist(lapply(x3,paste,collapse=";"))#
+all_names2 <- gsub(";;",";",x4)#
+  head(all_names2)#
+df_out$all_names <- all_names2#
+all_names_spl <- strsplit(x4,";",fixed=T)#
+for (row in 1:length(all_names_spl)) {#
+  all_names_spl[[row]] <- subset(all_names_spl[[row]],all_names_spl[[row]]!="")#
+  for (i in 1:length(all_names_spl[[row]])) {#
+    print(i)#
+    all_names_spl[[row]][[i]] <- paste0(all_names_spl[[row]][[i]],";")#
+  }#
+}#
+  all_names_spl
+check_match2 <- function(vector,match_to) {#
+  matches <- as.list(1:length(match_to))#
+  for (row in 1:length(match_to)) {#
+    lst <- c(rep("NA",length(match_to[[row]])))#
+    for (i in 1:length(lst)) {#
+      pos <- grep(match_to[[row]][[i]], vector)#
+      if (length(pos)) {#
+        lst[[i]] <- pos[[1]]#
+      }#
+    }#
+    lst <- subset(lst,lst!="NA")#
+    matches[[row]] <- lst[1]#
+  }#
+  return(matches)#
+}#
+#
+#vector <- c("Larix lyallii","Sapium glandulosum","Nolina bigel",";;;Sapium glandulosum;","e","f","Alnus rhombifolia")#
+#match_to <- match_to <- all_names_spl[1:10]#
+#lst <- as.list(rep("NA",length(match_to)))#
+#check_match2(vec,match_to)#
+#
+match2_possible_syn <- check_match2(possible_syn,all_names_spl)#
+match2_biotics <- check_match2(biotics,all_names_spl)#
+match2_fna <- check_match2(fna,all_names_spl)#
+match2_gts <- check_match2(gts,all_names_spl)#
+match2_iucn <- check_match2(iucn,all_names_spl)#
+match2_bonap <- check_match2(bonap,all_names_spl)#
+match2_conifer <- check_match2(conifer,all_names_spl)#
+match2_usdaplants <- check_match2(usdaplants,all_names_spl)#
+#
+# create dataframe with matches lined up#
+df_out2 <- all_names2#
+df_out2 <- align_matches(match2_possible_syn,possible_syn,df_out2,2)#
+df_out2 <- align_matches(match2_biotics,biotics,df_out2,3)#
+df_out2 <- align_matches(match2_fna,fna,df_out2,4)#
+df_out2 <- align_matches(match2_gts,gts,df_out2,5)#
+df_out2 <- align_matches(match2_iucn,iucn,df_out2,6)#
+df_out2 <- align_matches(match2_bonap,bonap,df_out2,7)#
+df_out2 <- align_matches(match2_conifer,conifer,df_out2,8)#
+df_out2 <- align_matches(match2_usdaplants,usdaplants,df_out2,9)#
+#
+setnames(df_out2,#
+         old=c("V2","V3","V4","V5","V6","V7","V8","V9"),#
+         new=c("possible_syn","biotics","fna","gts",#
+               "iucn","bonap","conifer","usdaplants"))#
+head(df_out2)
+nrow(df_out)
+all_names <- paste(our_list,df_out2$possible_syn,df_out2$biotics,df_out2$fna,df_out2$gts,#
+                          df_out2$iucn,df_out2$bonap,df_out2$conifer,df_out2$usdaplants,sep=";")#
+x <- gsub("NA","",all_names)#
+x2 <- lapply(x,function(x) unlist(strsplit(x,";")))#
+x3 <- lapply(x2,unique)#
+x4 <- unlist(lapply(x3,paste,collapse=";"))#
+all_names3 <- gsub(";;",";",x4)#
+  head(all_names3)#
+df_out2$all_names <- all_names3#
+all_names_spl2 <- strsplit(x4,";",fixed=T)#
+for (row in 1:length(all_names_spl2)) {#
+  all_names_spl2[[row]] <- subset(all_names_spl2[[row]],all_names_spl2[[row]]!="")#
+    for (i in 1:length(all_names_spl2[[row]])) {#
+      print(i)#
+      all_names_spl2[[row]][[i]] <- paste0(all_names_spl2[[row]][[i]],";")#
+    }#
+}#
+  all_names_spl2#
+### TEST SUCCESS ####
+#
+for (i in 1:nrow(df_out)) {#
+  if (is.na(df_out$gts[[i]]) && !is.na(df_out2$gts[[i]])) {#
+    print(df_out2$gts[[i]]) # if nothing prints there may be a problem#
+  }#
+}#
+#
+test <- subset(df_out$iucn,!is.na(df_out$iucn))#
+  length(test) # this should be shorter#
+test2 <- subset(df_out2$iucn,!is.na(df_out2$iucn))#
+  length(test2) # this should be longer
+length(all_names_spl2)
+write.csv(df_out2, file = "/Volumes/GoogleDrive/My Drive/US Tree List/List Compare/UStreeList_compare_new.csv")
+## set_workingdirectory.R#
+# Shannon Still#
+#
+## set the working environment for the computer on which you are working.#
+	## here we are just setting the working directoary and maybe an output folder. But we could also add links specific to operating systems or other computers.#
+			## for instance, we could set the data folder to change depending on the location relative to this working directory.#
+#
+#####################################################################################################
+##set the working environment depending on the computer on which working#
+#####################################################################################################
+## first is for Elizabeth Tokarz#
+  if (Sys.info()[4] == "MIA_ATLANTICA") {#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("G:/My Drive/Distributions_TreeSpecies/in-use_occurrence_raw"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+      one_up <- "G:/My Drive/Distributions_TreeSpecies"#
+      compiled <- "G:/My Drive/Distributions_TreeSpecies/in-use_occurrence_compiled"#
+      translate_fia <- "G:/My Drive/Distributions_TreeSpecies/fia_translation_data_raw"#
+      f_out <- "SDM_output"#
+      data_in <- "/main/data/directory/or/folder"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Elizabeth Tokarz's nice machine with the lovely name ", Sys.info()[4],"."))#
+#
+  } else if (Sys.info()[4] == "Still-MBPro.local") {#
+## next is for Shannon Still#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("/Users/sstill/Box/Research/Active_Projects/MortonArb_SDM/Tree_Distribution_Database"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+      #one_up <-#
+      #translate_fia <-#
+    #compiled <- #
+      f_out <- "SDM_output"#
+      data_in <- "/Users/sstill/Box/Research/Active_Projects/MortonArb_SDM"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Shannon Still's MacBook Pro ", Sys.info()[4],"."))#
+		} else if (Sys.info()[4] == "Africa.local") {#
+## next is for Emily Beckman#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("/Volumes/GoogleDrive/My Drive/Distributions_TreeSpecies/in-use_occurrence_raw"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+		  one_up <- "/Volumes/GoogleDrive/My Drive/Distributions_TreeSpecies"#
+		  compiled <- "/Volumes/GoogleDrive/My Drive/Distributions_TreeSpecies/in-use_occurrence_compiled"#
+		  translate_fia <- "/Volumes/GoogleDrive/My Drive/Distributions_TreeSpecies/fia_translation_data_raw"#
+		  f_out <- "SDM_output"#
+      data_in <- "/main/data/directory/or/folder"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Emily Beckman's nice computer with a lovely name ", Sys.info()[4],"."))#
+		} else {#
+## last is the default which sets the working driectory as the folder from which you opened the scripts/project#
+  setwd(getwd())#
+  f_out <- "SDM_output"#
+  #   pypath <- "/Library/Frameworks/GDAL.framework/Versions/current/Programs/gdal_polygonize.py"#
+}#
+#
+####
+##Elizabeth Tokarz Sys.info ()#
+ #        sysname         release         version        nodename         machine           login            user#
+ #      "Windows"      ">= 8 x64"    "build 9200" "MIA_ATLANTICA"        "x86-64"     "Elizabeth"     "Elizabeth"#
+ # effective_user#
+ #    "Elizabeth"#
+#
+## shannon Still Sys.info()#
+#                                                                                           sysname#
+#                                                                                          "Darwin"#
+#                                                                                           release#
+#                                                                                          "17.4.0"#
+#                                                                                           version#
+# "Darwin Kernel Version 17.4.0: Sun Dec 17 09:19:54 PST 2017; root:xnu-4570.41.2~1/RELEASE_X86_64"#
+#                                                                                          nodename#
+#                                                                               "Still-MBPro.local"#
+#                                                                                           machine#
+#                                                                                          "x86_64"#
+#                                                                                             login#
+#                                                                                          "sstill"#
+#                                                                                              user#
+#                                                                                          "sstill"#
+#                                                                                    effective_user#
+#                                                                                          "sstill"
+library(sp)#
+library(rgdal)#
+library(spatialEco)#
+library(geosphere)#
+library(mapview)#
+library(data.table)#
+library(dplyr)#
+library(plyr)#
+#
+## Subset data and (optionally) write a CSV#
+gen_subset <- function(orig_data, action, export_name){#
+  selected_rows <- (action)#
+  new <- orig_data[selected_rows,]#
+  if (missing(export_name)){#
+    return(data.frame(new))#
+  } else {#
+    write.csv(new, file = export_name)#
+    return(data.frame(new))#
+  }#
+}
+occur_all <- read.csv(file=paste0(compiled, '/occurrence_compiled_dec2.csv'), as.is=T)#
+nrow(occur_all) #39908#
+#
+# make sure coordinates have correct +/- sign#
+for(row in 1:nrow(occur_all)){#
+  if(occur_all$decimalLongitude[row] > 0){#
+    occur_all$decimalLongitude[row] <- occur_all$decimalLongitude[row]*(-1)#
+    print("pos")#
+  }#
+  if(occur_all$decimalLatitude[row] < 0){#
+    occur_all$decimalLatitude[row] <- abs(occur_all$decimalLatitude[row])#
+    print("neg")#
+  }#
+}#
+# round lat and long to 3 digits after decimal#
+occur_all$lat_round <- round(occur_all$decimalLatitude, 3)#
+occur_all$long_round <- round(occur_all$decimalLongitude, 3)#
+# before removing duplicates, let's number the occurrences so we know which ones will be saved#
+occur_all$obs_no <- seq(1, length(occur_all$X), 1)
+getwd()
+## set_workingdirectory.R#
+# Shannon Still#
+#
+## set the working environment for the computer on which you are working.#
+	## here we are just setting the working directoary and maybe an output folder. But we could also add links specific to operating systems or other computers.#
+			## for instance, we could set the data folder to change depending on the location relative to this working directory.#
+#
+#####################################################################################################
+##set the working environment depending on the computer on which working#
+#####################################################################################################
+## first is for Elizabeth Tokarz#
+  if (Sys.info()[4] == "MIA_ATLANTICA") {#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("G:/My Drive/Distributions_TreeSpecies/in-use_occurrence_raw"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+      one_up <- "G:/My Drive/Distributions_TreeSpecies"#
+      compiled <- "G:/My Drive/Distributions_TreeSpecies/in-use_occurrence_compiled"#
+      translate_fia <- "G:/My Drive/Distributions_TreeSpecies/fia_translation_data_raw"#
+      f_out <- "SDM_output"#
+      data_in <- "/main/data/directory/or/folder"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Elizabeth Tokarz's nice machine with the lovely name ", Sys.info()[4],"."))#
+#
+  } else if (Sys.info()[4] == "Still-MBPro.local") {#
+## next is for Shannon Still#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("/Users/sstill/Box/Research/Active_Projects/MortonArb_SDM/Tree_Distribution_Database"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+      #one_up <-#
+      #translate_fia <-#
+    #compiled <- #
+      f_out <- "SDM_output"#
+      data_in <- "/Users/sstill/Box/Research/Active_Projects/MortonArb_SDM"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Shannon Still's MacBook Pro ", Sys.info()[4],"."))#
+		} else if (Sys.info()[4] == "Africa.local") {#
+## next is for Emily Beckman#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("/Volumes/GoogleDrive/My Drive/Distributions_TreeSpecies/in-use_occurrence_raw"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+		  one_up <- "/Volumes/GoogleDrive/My Drive/Distributions_TreeSpecies"#
+		  compiled <- "/Volumes/GoogleDrive/My Drive/Distributions_TreeSpecies/in-use_occurrence_compiled"#
+		  translate_fia <- "/Volumes/GoogleDrive/My Drive/Distributions_TreeSpecies/fia_translation_data_raw"#
+		  f_out <- "SDM_output"#
+      data_in <- "/main/data/directory/or/folder"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Emily Beckman's nice computer with a lovely name ", Sys.info()[4],"."))#
+		} else {#
+## last is the default which sets the working driectory as the folder from which you opened the scripts/project#
+  setwd(getwd())#
+  f_out <- "SDM_output"#
+  #   pypath <- "/Library/Frameworks/GDAL.framework/Versions/current/Programs/gdal_polygonize.py"#
+}#
+#
+####
+##Elizabeth Tokarz Sys.info ()#
+ #        sysname         release         version        nodename         machine           login            user#
+ #      "Windows"      ">= 8 x64"    "build 9200" "MIA_ATLANTICA"        "x86-64"     "Elizabeth"     "Elizabeth"#
+ # effective_user#
+ #    "Elizabeth"#
+#
+## shannon Still Sys.info()#
+#                                                                                           sysname#
+#                                                                                          "Darwin"#
+#                                                                                           release#
+#                                                                                          "17.4.0"#
+#                                                                                           version#
+# "Darwin Kernel Version 17.4.0: Sun Dec 17 09:19:54 PST 2017; root:xnu-4570.41.2~1/RELEASE_X86_64"#
+#                                                                                          nodename#
+#                                                                               "Still-MBPro.local"#
+#                                                                                           machine#
+#                                                                                          "x86_64"#
+#                                                                                             login#
+#                                                                                          "sstill"#
+#                                                                                              user#
+#                                                                                          "sstill"#
+#                                                                                    effective_user#
+#                                                                                          "sstill"
+getwd()
+if (Sys.info()[4] == "MIA_ATLANTICA") {#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("G:/My Drive/Distributions_TreeSpecies/in-use_occurrence_raw"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+      one_up <- "G:/My Drive/Distributions_TreeSpecies"#
+      compiled <- "G:/My Drive/Distributions_TreeSpecies/in-use_occurrence_compiled"#
+      translate_fia <- "G:/My Drive/Distributions_TreeSpecies/fia_translation_data_raw"#
+      f_out <- "SDM_output"#
+      data_in <- "/main/data/directory/or/folder"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Elizabeth Tokarz's nice machine with the lovely name ", Sys.info()[4],"."))#
+#
+  } else if (Sys.info()[4] == "Still-MBPro.local") {#
+## next is for Shannon Still#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("/Users/sstill/Box/Research/Active_Projects/MortonArb_SDM/Tree_Distribution_Database"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+      #one_up <-#
+      #translate_fia <-#
+    #compiled <- #
+      f_out <- "SDM_output"#
+      data_in <- "/Users/sstill/Box/Research/Active_Projects/MortonArb_SDM"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Shannon Still's MacBook Pro ", Sys.info()[4],"."))#
+		} else if (Sys.info()[4] == "Africa.local") {#
+## next is for Emily Beckman#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("/Volumes/GoogleDrive/My Drive/Distributions_TreeSpecies/in-use_occurrence_raw"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+		  one_up <- "/Volumes/GoogleDrive/My Drive/Distributions_TreeSpecies"#
+		  compiled <- "/Volumes/GoogleDrive/My Drive/Distributions_TreeSpecies/in-use_occurrence_compiled"#
+		  translate_fia <- "/Volumes/GoogleDrive/My Drive/Distributions_TreeSpecies/fia_translation_data_raw"#
+		  f_out <- "SDM_output"#
+      data_in <- "/main/data/directory/or/folder"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Emily Beckman's nice computer with a lovely name ", Sys.info()[4],"."))#
+		} else {#
+## last is the default which sets the working driectory as the folder from which you opened the scripts/project#
+  setwd(getwd())#
+  f_out <- "SDM_output"
+}
+getwd()
+all_data1 = all_data %>% select(inst_short,inst_short2,sp_full_name,#
+                      genus,species,specific,specific2,hybrid,cultivar,rec_as,loc,garden_loc,#
+                      no_plants,prov_type,acc_no,lin_no,country,maj_region,min_region,#
+                      other_region,locality,site_notes,orig_lat,orig_long,#
+                      source,source2,donor_name,orig_notes,aqu_year,coll_name,#
+                      coll_no,coll_year)#
+                    str(all_data1)#
+## replace unwanted values#
+all_data1[] <- lapply(all_data1, function(x) gsub(",", ";", x))#
+#all_data1[] <- lapply(all_data1, function(x) gsub("^NA$",NA, x))#
+str(all_data1)#
+#
+## combine similar columns#
+  # create all_source column#
+all_data1$all_source <- NA#
+all_data1$all_source <- paste(all_data1$source,all_data1$source2,all_data1$donor_name, sep=" | ")#
+unique(all_data1$all_source)#
+#all_data1[] <- lapply(all_data1, function(x) gsub("^ | NA$","", x))#
+  # create all_locality column#
+all_data1$all_locality <- NA#
+all_data1$all_locality <- paste(all_data1$locality,all_data1$min_region,all_data1$maj_region,all_data1$other_region,all_data1$country,sep=" | ")#
+#
+## standardize columns#
+  # create species_name column#
+unique(all_data1$genus)#
+unique(all_data1$species)#
+all_data1[] <- lapply(all_data1, function(x) gsub("^$",NA, x))#
+all_data1$species <- sapply(all_data1$species, function(x) gsub("^sp.$",NA, x))#
+for(row in 1:nrow(all_data1)){#
+  if(is.na(all_data1$species[row])){#
+    all_data1$species[row] <- all_data1$sp_full_name[row]#
+  }#
+}#
+all_data1$species <- sapply(all_data1$species, function(x) gsub("_","x", x))#
+all_data1$species <- sapply(all_data1$species, function(x) gsub("\\(x\\)","x", x))#
+all_data1$species <- sapply(all_data1$species, function(x) gsub("Quercus ","", x))
+setwd("/Volumes/GoogleDrive/My Drive/US Oak Gap Analysis/Final Report/PA Calculations")#
+#
+library(dplyr)#
+#
+tbl1 <- read.csv("PADUS1_4Combined_Intersect_Clip_TableToExcel1.csv"); nrow(tbl1)#
+tbl2 <- read.csv("PADUS1_4Combined_Intersect_Clip_TableToExcel2.csv"); nrow(tbl2)#
+tbl3 <- read.csv("PADUS1_4Combined_Intersect_Clip_TableToExcel3.csv"); nrow(tbl3)#
+tbl4 <- read.csv("PADUS1_4Combined_Intersect_Clip_TableToExcel4.csv"); nrow(tbl4)#
+#
+all <- rbind(tbl1,tbl2,tbl3,tbl4)#
+  nrow(all)
+## set_workingdirectory.R#
+# Shannon Still#
+#
+## set the working environment for the computer on which you are working.#
+	## here we are just setting the working directoary and maybe an output folder. But we could also add links specific to operating systems or other computers.#
+			## for instance, we could set the data folder to change depending on the location relative to this working directory.#
+#
+#####################################################################################################
+##set the working environment depending on the computer on which working#
+#####################################################################################################
+## first is for Elizabeth Tokarz#
+  if (Sys.info()[4] == "MIA_ATLANTICA") {#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("G:/My Drive/Distributions_TreeSpecies/in-use_occurrence_raw"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+      one_up <- "G:/My Drive/Distributions_TreeSpecies"#
+      compiled <- "G:/My Drive/Distributions_TreeSpecies/in-use_occurrence_compiled"#
+      translate_fia <- "G:/My Drive/Distributions_TreeSpecies/fia_translation_data_raw"#
+      f_out <- "SDM_output"#
+      data_in <- "/main/data/directory/or/folder"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Elizabeth Tokarz's nice machine with the lovely name ", Sys.info()[4],"."))#
+#
+  } else if (Sys.info()[4] == "Still-MBPro.local") {#
+## next is for Shannon Still#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("/Users/sstill/Box/Research/Active_Projects/MortonArb_SDM/Tree_Distribution_Database"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+      #one_up <-#
+      #translate_fia <-#
+    #compiled <-#
+      f_out <- "SDM_output"#
+      data_in <- "/Users/sstill/Box/Research/Active_Projects/MortonArb_SDM"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Shannon Still's MacBook Pro ", Sys.info()[4],"."))#
+		} else if (Sys.info()[4] == "Africa.local") {#
+## next is for Emily Beckman#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("/Volumes/GoogleDrive/My Drive/Occurrence Data/raw_to_compile"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+		  one_up <- "/Volumes/GoogleDrive/My Drive/Occurrence Data"#
+		  compiled <- "/Volumes/GoogleDrive/My Drive/Occurrence Data/occurrence_compiled"#
+		  translate_fia <- "/Volumes/GoogleDrive/My Drive/Occurrence Data/fia_translation_data_raw"#
+		  f_out <- "SDM_output"#
+      data_in <- "/main/data/directory/or/folder"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Emily Beckman's nice computer with a lovely name ", Sys.info()[4],"."))#
+		} else {#
+## last is the default which sets the working driectory as the folder from which you opened the scripts/project#
+  setwd(getwd())#
+  f_out <- "SDM_output"#
+  #   pypath <- "/Library/Frameworks/GDAL.framework/Versions/current/Programs/gdal_polygonize.py"#
+}#
+#
+### LOAD PACKAGES ####
+library(dplyr)#
+library(plyr)#
+# ? library(rdf)#
+library(rgeos)#
+library(rgbif)#
+library(ridigbio)#
+library(data.table)#
+library(tidyr)#
+library(stringr)#
+library(lubridate)#
+library(rgdal)#
+library(geosphere)#
+library(sp)#
+library(spatialEco)#
+library(mapview)#
+####
+##Elizabeth Tokarz Sys.info ()#
+ #        sysname         release         version        nodename         machine           login            user#
+ #      "Windows"      ">= 8 x64"    "build 9200" "MIA_ATLANTICA"        "x86-64"     "Elizabeth"     "Elizabeth"#
+ # effective_user#
+ #    "Elizabeth"#
+#
+## shannon Still Sys.info()#
+#                                                                                           sysname#
+#                                                                                          "Darwin"#
+#                                                                                           release#
+#                                                                                          "17.4.0"#
+#                                                                                           version#
+# "Darwin Kernel Version 17.4.0: Sun Dec 17 09:19:54 PST 2017; root:xnu-4570.41.2~1/RELEASE_X86_64"#
+#                                                                                          nodename#
+#                                                                               "Still-MBPro.local"#
+#                                                                                           machine#
+#                                                                                          "x86_64"#
+#                                                                                             login#
+#                                                                                          "sstill"#
+#                                                                                              user#
+#                                                                                          "sstill"#
+#                                                                                    effective_user#
+#                                                                                          "sstill"
+getwd()
+## set_workingdirectory.R#
+# Shannon Still#
+#
+## set the working environment for the computer on which you are working.#
+	## here we are just setting the working directoary and maybe an output folder. But we could also add links specific to operating systems or other computers.#
+			## for instance, we could set the data folder to change depending on the location relative to this working directory.#
+#
+#####################################################################################################
+##set the working environment depending on the computer on which working#
+#####################################################################################################
+## first is for Elizabeth Tokarz#
+  if (Sys.info()[4] == "MIA_ATLANTICA") {#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("G:/My Drive/Distributions_TreeSpecies/in-use_occurrence_raw"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+      one_up <- "G:/My Drive/Distributions_TreeSpecies"#
+      compiled <- "G:/My Drive/Distributions_TreeSpecies/in-use_occurrence_compiled"#
+      translate_fia <- "G:/My Drive/Distributions_TreeSpecies/fia_translation_data_raw"#
+      f_out <- "SDM_output"#
+      data_in <- "/main/data/directory/or/folder"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Elizabeth Tokarz's nice machine with the lovely name ", Sys.info()[4],"."))#
+#
+  } else if (Sys.info()[4] == "Still-MBPro.local") {#
+## next is for Shannon Still#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("/Users/sstill/Box/Research/Active_Projects/MortonArb_SDM/Tree_Distribution_Database"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+      #one_up <-#
+      #translate_fia <-#
+    #compiled <-#
+      f_out <- "SDM_output"#
+      data_in <- "/Users/sstill/Box/Research/Active_Projects/MortonArb_SDM"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Shannon Still's MacBook Pro ", Sys.info()[4],"."))#
+		} else if (Sys.info()[4] == "Africa.local") {#
+## next is for Emily Beckman#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("Google Drive/My Drive/Conservation Gap Analysis/Occurrence Data/raw_to_compile"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+		  one_up <- "Google Drive/My Drive/Occurrence Data"#
+		  compiled <- "/Volumes/GoogleDrive/My Drive/Occurrence Data/occurrence_compiled"#
+		  translate_fia <- "/Volumes/GoogleDrive/My Drive/Occurrence Data/fia_translation_data_raw"#
+		  f_out <- "SDM_output"#
+      data_in <- "/main/data/directory/or/folder"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Emily Beckman's nice computer with a lovely name ", Sys.info()[4],"."))#
+		} else {#
+## last is the default which sets the working driectory as the folder from which you opened the scripts/project#
+  setwd(getwd())#
+  f_out <- "SDM_output"#
+  #   pypath <- "/Library/Frameworks/GDAL.framework/Versions/current/Programs/gdal_polygonize.py"#
+}#
+#
+### LOAD PACKAGES ####
+library(dplyr)#
+library(plyr)#
+# ? library(rdf)#
+library(rgeos)#
+library(rgbif)#
+library(ridigbio)#
+library(data.table)#
+library(tidyr)#
+library(stringr)#
+library(lubridate)#
+library(rgdal)#
+library(geosphere)#
+library(sp)#
+library(spatialEco)#
+library(mapview)#
+####
+##Elizabeth Tokarz Sys.info ()#
+ #        sysname         release         version        nodename         machine           login            user#
+ #      "Windows"      ">= 8 x64"    "build 9200" "MIA_ATLANTICA"        "x86-64"     "Elizabeth"     "Elizabeth"#
+ # effective_user#
+ #    "Elizabeth"#
+#
+## shannon Still Sys.info()#
+#                                                                                           sysname#
+#                                                                                          "Darwin"#
+#                                                                                           release#
+#                                                                                          "17.4.0"#
+#                                                                                           version#
+# "Darwin Kernel Version 17.4.0: Sun Dec 17 09:19:54 PST 2017; root:xnu-4570.41.2~1/RELEASE_X86_64"#
+#                                                                                          nodename#
+#                                                                               "Still-MBPro.local"#
+#                                                                                           machine#
+#                                                                                          "x86_64"#
+#                                                                                             login#
+#                                                                                          "sstill"#
+#                                                                                              user#
+#                                                                                          "sstill"#
+#                                                                                    effective_user#
+#                                                                                          "sstill"
+getwd()
+## set_workingdirectory.R#
+# Shannon Still#
+#
+## set the working environment for the computer on which you are working.#
+	## here we are just setting the working directoary and maybe an output folder. But we could also add links specific to operating systems or other computers.#
+			## for instance, we could set the data folder to change depending on the location relative to this working directory.#
+#
+#####################################################################################################
+##set the working environment depending on the computer on which working#
+#####################################################################################################
+## first is for Elizabeth Tokarz#
+  if (Sys.info()[4] == "MIA_ATLANTICA") {#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("G:/My Drive/Distributions_TreeSpecies/in-use_occurrence_raw"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+      one_up <- "G:/My Drive/Distributions_TreeSpecies"#
+      compiled <- "G:/My Drive/Distributions_TreeSpecies/in-use_occurrence_compiled"#
+      translate_fia <- "G:/My Drive/Distributions_TreeSpecies/fia_translation_data_raw"#
+      f_out <- "SDM_output"#
+      data_in <- "/main/data/directory/or/folder"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Elizabeth Tokarz's nice machine with the lovely name ", Sys.info()[4],"."))#
+#
+  } else if (Sys.info()[4] == "Still-MBPro.local") {#
+## next is for Shannon Still#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("/Users/sstill/Box/Research/Active_Projects/MortonArb_SDM/Tree_Distribution_Database"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+      #one_up <-#
+      #translate_fia <-#
+    #compiled <-#
+      f_out <- "SDM_output"#
+      data_in <- "/Users/sstill/Box/Research/Active_Projects/MortonArb_SDM"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Shannon Still's MacBook Pro ", Sys.info()[4],"."))#
+		} else if (Sys.info()[4] == "Africa.local") {#
+## next is for Emily Beckman#
+  	## if you want to set the absolute path within your computer, use the following command:#
+     setwd("/Google Drive/My Drive/Conservation Gap Analysis/Occurrence Data/raw_to_compile"); print(getwd())#
+#
+  	## if you want to set other directories, such as file output folders and such, then you can add them here:#
+  			## for instance, the output folder (defined by object 'f_out') would be set as 'SDM_output' and this would then typically be#
+  					## a subfolder to the main working directory#
+		  one_up <- "Google Drive/My Drive/Occurrence Data"#
+		  compiled <- "/Volumes/GoogleDrive/My Drive/Occurrence Data/occurrence_compiled"#
+		  translate_fia <- "/Volumes/GoogleDrive/My Drive/Occurrence Data/fia_translation_data_raw"#
+		  f_out <- "SDM_output"#
+      data_in <- "/main/data/directory/or/folder"#
+#
+      ## this last command simply prints to the console the working directory that you have set. It's just to let you know that you're in the right spot.#
+		    print(paste0("Working from Emily Beckman's nice computer with a lovely name ", Sys.info()[4],"."))#
+		} else {#
+## last is the default which sets the working driectory as the folder from which you opened the scripts/project#
+  setwd(getwd())#
+  f_out <- "SDM_output"#
+  #   pypath <- "/Library/Frameworks/GDAL.framework/Versions/current/Programs/gdal_polygonize.py"#
+}#
+#
+### LOAD PACKAGES ####
+library(dplyr)#
+library(plyr)#
+# ? library(rdf)#
+library(rgeos)#
+library(rgbif)#
+library(ridigbio)#
+library(data.table)#
+library(tidyr)#
+library(stringr)#
+library(lubridate)#
+library(rgdal)#
+library(geosphere)#
+library(sp)#
+library(spatialEco)#
+library(mapview)#
+####
+##Elizabeth Tokarz Sys.info ()#
+ #        sysname         release         version        nodename         machine           login            user#
+ #      "Windows"      ">= 8 x64"    "build 9200" "MIA_ATLANTICA"        "x86-64"     "Elizabeth"     "Elizabeth"#
+ # effective_user#
+ #    "Elizabeth"#
+#
+## shannon Still Sys.info()#
+#                                                                                           sysname#
+#                                                                                          "Darwin"#
+#                                                                                           release#
+#                                                                                          "17.4.0"#
+#                                                                                           version#
+# "Darwin Kernel Version 17.4.0: Sun Dec 17 09:19:54 PST 2017; root:xnu-4570.41.2~1/RELEASE_X86_64"#
+#                                                                                          nodename#
+#                                                                               "Still-MBPro.local"#
+#                                                                                           machine#
+#                                                                                          "x86_64"#
+#                                                                                             login#
+#                                                                                          "sstill"#
+#                                                                                              user#
+#                                                                                          "sstill"#
+#                                                                                    effective_user#
+#                                                                                          "sstill"
+getwd()
+library(googledrive)
+drive_get("~/")
+drive_get("Conservation Gap Analysis/")
+setwd(drive_get("Conservation Gap Analysis/"))
+setwd("./Google Drive⁩/⁨My Drive")
+install.packages("googledrive")
+library(googledrive)
+drive_find(n_max = 30)
+drive_find(pattern = "IMLS")
+drive_find(n_max = 30)
+drive_get(as.id(1iQrH8WpXJJi8OrPWhzdhxPGURndrAwju))
+drive_get(as.id("1iQrH8WpXJJi8OrPWhzdhxPGURndrAwju"))
+drive_download("IMLS_desiderata",type="csv")
+drive_download("IMLS_desiderata.csv",type="csv")
+sp_list_acc <- drive_download("IMLS_desiderata.csv")
+?drive_download
+sp_list_acc <- drive_download(IMLS_desiderata.csv)
+drive_download(sp_list_acc, path = "IMLS_desiderata.csv")
+library(googledrive)#
+library(rgbif)#
+library(dplyr)
+sp_list_acc <- drive_download("IMLS_desiderata.csv")
+drive_download(sp_list_acc, path = "IMLS_desiderata.csv")
+sp_list_acc <- drive_download("IMLS_desiderata.csv")
+sp_list_acc <- drive_download("IMLS_desiderata.csv",overwrite=T)
+nrow(sp_list_acc)
+str(sp_list_acc)
+sp_list_acc <- read.csv("IMLS_desiderata.csv", header = T, na.strings=c("","NA"), colClasses="character"); nrow(sp_list_acc) #72
+library(googledrive)
+drive_download("IMLS_desiderata_SpeciesOnly.csv",overwrite=T)
+install.package(httpuv)
+?install
+??install
+install.packages(httpuv)
+install.packages("httpuv")
+library(httpuv)
+drive_download("IMLS_desiderata_SpeciesOnly.csv",overwrite=T)
+library(tidyverse) # ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, forcats#
+library(data.table)#
+library(anchors)#
+library(measurements)#
+library(textclean)#
+##################
+### FUNCTIONS ####
+##################
+#
+# Matches up column headers, keeping all columns, not just matching ones [stacking]#
+# (fills added columns with NAs)#
+    # SOURCE: https://amywhiteheadresearch.wordpress.com/2013/05/13/combining-dataframes-when-the-columns-dont-match/#
+rbind.all.columns <- function(x, y) {#
+    x.diff <- setdiff(colnames(x), colnames(y))#
+    y.diff <- setdiff(colnames(y), colnames(x))#
+    x[, c(as.character(y.diff))] <- ""#
+    y[, c(as.character(x.diff))] <- ""#
+    return(rbind(x, y))#
+}#
+#
+# trim white space at beginning and end of string; takes a vector (e.g., column of a data frame)#
+trim <- function(x) gsub("^\\s+|\\s+$", "", x)#
+#
+# count the number of spaces in a string; takes a vector (e.g., column of a data frame)#
+  # and returns all rows in dataframe with spaces in strings in target column#
+count.spaces <- function(x) { sapply(gregexpr(" ", x), function(y) { sum(y>=0) } ) }#
+######## !!! I want to fix this to make it more efficient !!! #############
+#
+# Marks rows by placing "mark" in the "marked" column#
+# search "df.column" based on each element in list "search.list"#
+# "fixed.tf" takes either "T" or "F" and alters the grepl command#
+mark.rows <- function(search.list, df, df.column, fixed.tf) {#
+  # cycle through search.list and mark matching rows#
+  for(char in 1:length(search.list)){#
+    for(i in 1:nrow(df)){#
+      match <- grepl(pattern = search.list[char], x = df.column[i], fixed = fixed.tf)#
+      if(match == TRUE){#
+        df$marked[i] <- "mark"#
+        print("TRUE")#
+      }#
+    }#
+    print(search.list[char]) # print search.list element so you know how long its taking#
+  }#
+  print(paste("number of rows marked:", nrow(df[which(df$marked == "mark"),]))) # number of rows marked#
+  return(df)
+all_data9 <- read.csv("exsitu_working/GA2_exsitu_compiled_targetSpecies.csv",strip.white=T,colClasses="character",as.is=T,fileEncoding="latin1")#
+all_data9 <- all_data9[,2:ncol(all_data9)]#
+#
+# standardize provenence type column#
+sort(unique(all_data9$prov_type))#
+    # transfer contents of one column to another column, if data needs to be preserved but is in wrong place#
+all_data9$notes[grep("Of known, direct wild origin - Florence County, SC.", all_data9$prov_type)] <- "Florence County, SC"#
+all_data9$notes[grep("ClearLake,California(38'N)", all_data9$prov_type)] <- "ClearLake,California(38'N)"#
+    # search for part of string and replace whole row contents#
+wild <- c("California","wild","wld","collect","^w$")#
+all_data9$prov_type <- ifelse(grepl(paste(wild, collapse = "|"), all_data9$prov_type, ignore.case=T),"W",all_data9$prov_type)#
+hort <- c("cultiva","garden","nursery","^c$","^g$")#
+all_data9$prov_type <- ifelse(grepl(paste(hort, collapse = "|"), all_data9$prov_type, ignore.case=T),"H",all_data9$prov_type)#
+exwild <- c("indirect","ex wild","^z$")#
+all_data9$prov_type <- ifelse(grepl(paste(exwild, collapse = "|"), all_data9$prov_type, ignore.case=T),"Z",all_data9$prov_type)#
+all_data9$prov_type <- ifelse(grepl("native", all_data9$prov_type, ignore.case=T),"N",all_data9$prov_type)#
+    # everything else is unknown ("U")#
+all_data9$prov_type <- ifelse(all_data9$prov_type!= "W" & all_data9$prov_type != "Z" &#
+     all_data9$prov_type != "H" & all_data9$prov_type != "N","U",all_data9$prov_type)
+all_data9 <- read.csv("exsitu_working/GA2_exsitu_compiled_targetSpecies.csv",strip.white=T,colClasses="character",as.is=T,fileEncoding="latin1")#
+all_data9 <- all_data9[,2:ncol(all_data9)]
+setwd("./Desktop")#
+#
+### LOAD PACKAGES ####
+library(reshape)#
+library(plyr)#
+library(ggplot2)#
+library(dplyr)#
+library(tidyr)#
+#
+# read in data#
+target_sp <- read.csv("GA2_Cons_Action_Questionnaire_TargetSpecies.csv", header = T, na.strings=c("","NA"), colClasses="character",fileEncoding="latin1"); nrow(target_sp) #213#
+cons_actions <- read.csv("GA2_Cons_Action_Questionnaire_ConsActions.csv", header = T, na.strings=c("","NA"), colClasses="character",fileEncoding="latin1")#
+urgent_activity <- read.csv("GA2_Cons_Action_Questionnaire_UrgentActivity.csv", header = T, na.strings=c("","NA"), colClasses="character",fileEncoding="latin1")#
+like_to_begin <- read.csv("GA2_Cons_Action_Questionnaire_LikeToBegin.csv", header = T, na.strings=c("","NA"), colClasses="character",fileEncoding="latin1")#
+sig_threat <- read.csv("GA2_Cons_Action_Questionnaire_SigThreat.csv", header = T, na.strings=c("","NA"), colClasses="character",fileEncoding="latin1")#
+#
+# create data frame of IDs#
+#id_data <- target_sp[which(!is.na(target_sp$id)),1:10]#
+#id_data[] <- lapply(id_data, function(x) gsub("æ"," ",x))#
+#
+# transform data frames into more-workable forms and join to id_data#
+tg_sp_trans <- melt(target_sp, id=c("id","date","us_check","do_not_id_inst","name","institution","position","state_country","email","inst_category")); str(tg_sp_trans)#
+  tg_sp_trans <- tg_sp_trans[which(!is.na(tg_sp_trans$value)),]; nrow(tg_sp_trans) #794#
+  head(tg_sp_trans); unique(tg_sp_trans$value)#
+cons_trans <- melt(cons_actions, id=c("id","date","us_check","do_not_id_inst","name","institution","position","state_country","email","inst_category"))#
+  cons_trans <- cons_trans[which(!is.na(cons_trans$value)),]; nrow(cons_trans) #1402#
+  cons_trans <- cons_trans %>% separate("variable", "Target_species",sep="\\.\\.\\.", fill="right", extra="warn", remove="false")#
+  cons_trans$Target_species <- mgsub_regex(cons_trans$Target_species,c("\\.","Ê")," ")#
+  head(cons_trans)#
+urgent_trans <- melt(urgent_activity, id=c("id","date","us_check","do_not_id_inst","name","institution","position","state_country","email","inst_category"))#
+  urgent_trans <- urgent_trans[which(!is.na(urgent_trans$value)),]; nrow(urgent_trans) #505#
+  urgent_trans$variable <- mgsub_regex(urgent_trans$variable,c("\\.","Ê")," ")#
+  urgent_trans$value <- mgsub_regex(urgent_trans$value,c("\\.","Ê")," ")#
+  head(urgent_trans)#
+begin_trans <- melt(like_to_begin, id=c("id","date","us_check","do_not_id_inst","name","institution","position","state_country","email","inst_category"))#
+  begin_trans <- begin_trans[which(!is.na(begin_trans$value)),]; nrow(begin_trans) #1563#
+  begin_trans <- begin_trans %>% separate("variable", "Target_genus",sep="\\.\\.\\.", fill="right", extra="warn", remove="false")#
+  head(begin_trans)#
+threat_trans <- melt(sig_threat, id=c("id","date","us_check","do_not_id_inst","name","institution","position","state_country","email","inst_category"))#
+  threat_trans <- threat_trans[which(!is.na(threat_trans$value)),]; nrow(threat_trans) #443#
+  threat_trans$variable <- mgsub_regex(threat_trans$variable,c("\\.","Ê")," ")#
+  head(threat_trans)
+cons.bars <- function(genus,ang){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+    colnames(df)[colnames(df)=="value"] <- "Conservation_action_categories"#
+    colnames(df)[colnames(df)=="n"] <- "Number_of_respondents_undertaking_conservation_action"#
+  ggplot(df, aes(x = Target_species, y = Number_of_respondents_undertaking_conservation_action, fill=Conservation_action_categories)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang))#
+}#
+cons.pie <- function(genus){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+    colnames(df)[colnames(df)=="value"] <- "Conservation_action_categories"#
+    colnames(df)[colnames(df)=="n"] <- "Number_of_respondents_undertaking_conservation_action"#
+  ggplot(df, aes(x = Target_species, y = Number_of_respondents_undertaking_conservation_action, fill=Conservation_action_categories)) +#
+      geom_bar(stat='identity') +#
+      coord_polar("y", start=0)#
+}#
+cons.bars("Carya",0)
+??mgsub
+library(mgsub)
+tg_sp_trans <- melt(target_sp, id=c("id","date","us_check","do_not_id_inst","name","institution","position","state_country","email","inst_category")); str(tg_sp_trans)#
+  tg_sp_trans <- tg_sp_trans[which(!is.na(tg_sp_trans$value)),]; nrow(tg_sp_trans) #794#
+  head(tg_sp_trans); unique(tg_sp_trans$value)
+cons_trans <- melt(cons_actions, id=c("id","date","us_check","do_not_id_inst","name","institution","position","state_country","email","inst_category"))#
+  cons_trans <- cons_trans[which(!is.na(cons_trans$value)),]; nrow(cons_trans) #1402#
+  cons_trans <- cons_trans %>% separate("variable", "Target_species",sep="\\.\\.\\.", fill="right", extra="warn", remove="false")#
+  cons_trans$Target_species <- mgsub_regex(cons_trans$Target_species,c("\\.","Ê")," ")#
+  head(cons_trans)
+??mgsub_regex
+library(textclean)
+# transform data frames into more-workable forms and join to id_data#
+tg_sp_trans <- melt(target_sp, id=c("id","date","us_check","do_not_id_inst","name","institution","position","state_country","email","inst_category")); str(tg_sp_trans)#
+  tg_sp_trans <- tg_sp_trans[which(!is.na(tg_sp_trans$value)),]; nrow(tg_sp_trans) #794#
+  head(tg_sp_trans); unique(tg_sp_trans$value)
+cons_trans <- melt(cons_actions, id=c("id","date","us_check","do_not_id_inst","name","institution","position","state_country","email","inst_category"))#
+  cons_trans <- cons_trans[which(!is.na(cons_trans$value)),]; nrow(cons_trans) #1402#
+  cons_trans <- cons_trans %>% separate("variable", "Target_species",sep="\\.\\.\\.", fill="right", extra="warn", remove="false")#
+  cons_trans$Target_species <- mgsub_regex(cons_trans$Target_species,c("\\.","Ê")," ")#
+  head(cons_trans)
+urgent_trans <- melt(urgent_activity, id=c("id","date","us_check","do_not_id_inst","name","institution","position","state_country","email","inst_category"))#
+  urgent_trans <- urgent_trans[which(!is.na(urgent_trans$value)),]; nrow(urgent_trans) #505#
+  urgent_trans$variable <- mgsub_regex(urgent_trans$variable,c("\\.","Ê")," ")#
+  urgent_trans$value <- mgsub_regex(urgent_trans$value,c("\\.","Ê")," ")#
+  head(urgent_trans)
+begin_trans <- melt(like_to_begin, id=c("id","date","us_check","do_not_id_inst","name","institution","position","state_country","email","inst_category"))#
+  begin_trans <- begin_trans[which(!is.na(begin_trans$value)),]; nrow(begin_trans) #1563#
+  begin_trans <- begin_trans %>% separate("variable", "Target_genus",sep="\\.\\.\\.", fill="right", extra="warn", remove="false")#
+  head(begin_trans)
+threat_trans <- melt(sig_threat, id=c("id","date","us_check","do_not_id_inst","name","institution","position","state_country","email","inst_category"))#
+  threat_trans <- threat_trans[which(!is.na(threat_trans$value)),]; nrow(threat_trans) #443#
+  threat_trans$variable <- mgsub_regex(threat_trans$variable,c("\\.","Ê")," ")#
+  head(threat_trans)
+cons.bars("Carya",0)
+cons.bars <- function(genus,ang){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle("Title") +#
+      xlab("Target species") + ylab("Number of respondents undertaking conservation action") +#
+      scale_fill_discrete(name="Conservation action categories")#
+}
+cons.bars("Carya",0)
+cons.bars <- function(genus,ang){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle("Title") +#
+      xlab("/nTarget species") + ylab("/nNumber of respondents undertaking conservation action") +#
+      scale_fill_discrete(name="Conservation action categories")#
+}
+cons.bars("Carya",0)
+cons.bars <- function(genus,ang){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle("Title") +#
+      xlab("\nTarget species") + ylab("\nNumber of respondents undertaking conservation action") +#
+      scale_fill_discrete(name="Conservation action categories")#
+}
+cons.bars("Carya",0)
+cons.bars <- function(genus,ang){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle("Title") +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories")#
+}#
+cons.pie <- function(genus){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+    colnames(df)[colnames(df)=="value"] <- "Conservation_action_categories"#
+    colnames(df)[colnames(df)=="n"] <- "Number_of_respondents_undertaking_conservation_action"#
+  ggplot(df, aes(x = Target_species, y = Number_of_respondents_undertaking_conservation_action, fill=Conservation_action_categories)) +#
+      geom_bar(stat='identity') +#
+      coord_polar("y", start=0)#
+}#
+cons.bars("Carya",0)
+cons.bars <- function(genus,ang){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle("Title") +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_x_continuous(minor_breaks = seq(1, 10, 1))#
+}
+cons.bars("Carya",0)
+cons.bars <- function(genus,ang){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle("Title") +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1, 10, 1))#
+}
+cons.bars("Carya",0)
+cons.bars <- function(genus,ang){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle("Title") +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1))#
+}
+cons.bars("Carya",0)
+cons.bars <- function(genus,ang){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle("Title") +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30))#
+}
+cons.bars("Carya",0)
+cons.bars <- function(genus,ang,max){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle("Title") +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30)) +#
+      ylim(0,max)#
+}#
+cons.pie <- function(genus){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+    colnames(df)[colnames(df)=="value"] <- "Conservation_action_categories"#
+    colnames(df)[colnames(df)=="n"] <- "Number_of_respondents_undertaking_conservation_action"#
+  ggplot(df, aes(x = Target_species, y = Number_of_respondents_undertaking_conservation_action, fill=Conservation_action_categories)) +#
+      geom_bar(stat='identity') +#
+      coord_polar("y", start=0)#
+}#
+cons.bars("Carya",0,30)
+?scale_y_continuous
+cons.bars <- function(genus,ang,max){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle("Title") +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max))#
+}
+cons.bars("Carya",0,30)
+cons.bars <- function(genus,ang,max){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle("Title") +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = NA)#
+}
+cons.bars("Carya",0,30)
+cons.bars <- function(genus,ang,max){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle("Title") +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+}
+cons.bars("Carya",0,30)
+cons.bars <- function(genus,ang,max,save){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle("Title") +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg")
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg","Current conservation actions for target", italic("Carya species"), "\nreported in the 2018 tree conservation questionnaire")
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg",("Current conservation actions for target", italic("Carya species"), "\nreported in the 2018 tree conservation questionnaire"))
+cons.bars("Carya",0,30,"cons_carya.jpg","Current conservation actions for target~italic(Carya species)~\nreported in the 2018 tree conservation questionnaire")
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang)) +#
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  #ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg",paste("Current conservation actions for target", italic("Carya"), " species \nreported in the 2018 tree conservation questionnaire"))
+??italic
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species \nreported in the 2018 tree conservation questionnaire"))
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species reported in the 2018 tree conservation questionnaire"))
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species reported\nin the 2018 tree conservation questionnaire"))
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang),plot.title = element_text(size=16)) +#
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  #ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species reported in the tree conservation questionnaire"))
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang),plot.title = element_text(size=12)) +#
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  #ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species reported in the tree conservation questionnaire"))
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species \n reported in the tree conservation questionnaire"))
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species\nreported in the tree conservation questionnaire"))
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang),plot.title = element_text(size=12)) +#
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  #ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species\nreported in the tree conservation questionnaire"))
+cons.bars <- function(genus,ang,max,save,title,subtitle){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang),plot.title = element_text(size=12)) +#
+      labs(title = title,#
+       subtitle = subtitle,#
+       x = "\nTarget species\n", y = "\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  #ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg","Results from the tree conservation questionnaire",expression("Current conservation actions for target "*italic(Carya)*" species"))
+cons.bars <- function(genus,ang,max,save,title,subtitle){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang),plot.title = element_text(size=12)) +#
+      labs(title = title,#
+       subtitle = subtitle) + #
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  #ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg","subtitle",expression("Current conservation actions for target "*italic(Carya)*" species\nreported in the tree conservation questionnaire"))
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species"),"reported in the tree conservation questionnaire")
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species"))
+cons.bars <- function(genus,ang,max,save,title,subtitle=""){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang),plot.title = element_text(size=12)) +#
+      labs(title = title,#
+       subtitle = subtitle) + #
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  #ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species"))
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang),plot.title = element_text(size=12)) +#
+      labs(title = title) + #
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  #ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species"))
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang,face-"italics"),plot.title = element_text(size=12)) +#
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  #ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species"))
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang,face="italics"),plot.title = element_text(size=12)) +#
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  #ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species"))
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang,face="italic"),plot.title = element_text(size=12)) +#
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  #ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species"))
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang,face="italic"),plot.title = element_text(size=12)) +#
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  #ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species"))
+head(cons_trans)
+cons_trans$value <- gsub("e.g. genetics, climate change, pests, pathogens","e.g., genetics, climate change, pests",cons_trans$value)
+head(cons_trans)
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for target "*italic(Carya)*" species"))
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for selected "*italic(Carya)*" species"))
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang,face="italic"),plot.title = element_text(size=12)) +#
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  ggsave(save)
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for selected "*italic(Carya)*" species"))
+)
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang,face="italic"),plot.title = element_text(size=12)) +#
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  ggsave(save)#
+}
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for selected "*italic(Carya)*" species"))
+cons.pie("Fagus")
+cons.pie <- function(genus){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+    colnames(df)[colnames(df)=="value"] <- "Conservation_action_categories"#
+    colnames(df)[colnames(df)=="n"] <- "Number_of_respondents_undertaking_conservation_action"#
+  ggplot(df, aes(x = Target_species, y = Number_of_respondents_undertaking_conservation_action, fill=Conservation_action_categories)) +#
+      geom_bar(stat='identity') +#
+      coord_polar("y", start=0)#
+}#
+cons.bars("Carya",0,30,"cons_carya.jpg",expression("Current conservation actions for selected "*italic(Carya)*" species"))#
+cons.pie("Fagus")
+cons.bars("Fagus",0,30,"cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus grandifolia)*""))
+cons.bars("Fagus",0,30,"cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus grandifolia)*))
+cons.bars("Fagus",0,30,"cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus grandifolia)*" species"))
+cons.bars("Fagus",0,30,"cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+cons.bars <- function(genus,ang,max,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(angle=ang,face="italic"),plot.title = element_text(size=12)) +#
+      ggtitle(title) +#
+      xlab("\nTarget species\n") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      scale_y_continuous(minor_breaks = seq(1,30), limits = c(0,max), expand = c(0,0))#
+  #ggsave(save)#
+}
+cons.bars("Fagus",0,30,"cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+cons.bars("Fagus",0,10,"cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+cons.pie("Fagus")
+cons.pie <- function(genus,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+    colnames(df)[colnames(df)=="value"] <- "Conservation_action_categories"#
+    colnames(df)[colnames(df)=="n"] <- "Number_of_respondents_undertaking_conservation_action"#
+  ggplot(df, aes(x = Target_species, y = Number_of_respondents_undertaking_conservation_action, fill=Conservation_action_categories)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(face="italic"),plot.title = element_text(size=12)) +#
+      ggtitle(title) +#
+      xlab("") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      geom_text(label = percent(value/100)) +#
+      coord_polar("y", start=0)#
+}
+cons.pie("Fagus")
+cons.pie("Fagus","cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+cons.pie <- function(genus,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+    colnames(df)[colnames(df)=="value"] <- "Conservation_action_categories"#
+    colnames(df)[colnames(df)=="n"] <- "Number_of_respondents_undertaking_conservation_action"#
+  ggplot(df, aes(x = Target_species, y = Number_of_respondents_undertaking_conservation_action, fill=Conservation_action_categories)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(face="italic"),plot.title = element_text(size=12),#
+        panel.border = element_blank(),#
+        panel.grid=element_blank(),#
+        axis.ticks = element_blank(),#
+        plot.title=element_text(size=14, face="bold") +#
+      ggtitle(title) +#
+      xlab("") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      geom_text(label = percent(value/100)) +#
+      coord_polar("y", start=0)#
+}
+cons.pie <- function(genus,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+    colnames(df)[colnames(df)=="value"] <- "Conservation_action_categories"#
+    colnames(df)[colnames(df)=="n"] <- "Number_of_respondents_undertaking_conservation_action"#
+  ggplot(df, aes(x = Target_species, y = Number_of_respondents_undertaking_conservation_action, fill=Conservation_action_categories)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(face="italic"),plot.title = element_text(size=12),#
+        panel.border = element_blank(),#
+        panel.grid=element_blank(),#
+        axis.ticks = element_blank(),#
+        plot.title=element_text(size=14, face="bold")) +#
+      ggtitle(title) +#
+      xlab("") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      geom_text(label = percent(value/100)) +#
+      coord_polar("y", start=0)#
+}
+cons.pie("Fagus","cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+cons.pie <- function(genus,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+    colnames(df)[colnames(df)=="value"] <- "Conservation_action_categories"#
+    colnames(df)[colnames(df)=="n"] <- "Number_of_respondents_undertaking_conservation_action"#
+  ggplot(df, aes(x = Target_species, y = Number_of_respondents_undertaking_conservation_action, fill=Conservation_action_categories)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(face="italic"),plot.title = element_text(size=12),#
+        panel.border = element_blank(),#
+        panel.grid=element_blank(),#
+        axis.ticks = element_blank()) +#
+      ggtitle(title) +#
+      xlab("") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      geom_text(label = percent(value/100)) +#
+      coord_polar("y", start=0)#
+}
+cons.pie("Fagus","cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+??percent
+cons.pie <- function(genus,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+    colnames(df)[colnames(df)=="value"] <- "Conservation_action_categories"#
+    colnames(df)[colnames(df)=="n"] <- "Number_of_respondents_undertaking_conservation_action"#
+  ggplot(df, aes(x = Target_species, y = Number_of_respondents_undertaking_conservation_action, fill=Conservation_action_categories)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(face="italic"),plot.title = element_text(size=12),#
+        panel.border = element_blank(),#
+        panel.grid=element_blank(),#
+        axis.ticks = element_blank()) +#
+      ggtitle(title) +#
+      xlab("") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      geom_text(label = paste(value/100,"%")) +#
+      coord_polar("y", start=0)#
+}
+??percent
+cons.pie("Fagus","cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+library(scales)
+cons.pie <- function(genus,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+    colnames(df)[colnames(df)=="value"] <- "Conservation_action_categories"#
+  ggplot(df, aes(x = Target_species, y = Number_of_respondents_undertaking_conservation_action, fill=Conservation_action_categories)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(face="italic"),plot.title = element_text(size=12),#
+        panel.border = element_blank(),#
+        panel.grid=element_blank(),#
+        axis.ticks = element_blank()) +#
+      ggtitle(title) +#
+      xlab("") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      geom_text(label = percent(n/100)) +#
+      coord_polar("y", start=0)#
+}
+cons.pie("Fagus","cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+cons.pie <- function(genus,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+    colnames(df)[colnames(df)=="value"] <- "Conservation_action_categories"#
+  ggplot(df, aes(x = Target_species, y = n, fill=Conservation_action_categories)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(face="italic"),plot.title = element_text(size=12),#
+        panel.border = element_blank(),#
+        panel.grid=element_blank(),#
+        axis.ticks = element_blank()) +#
+      ggtitle(title) +#
+      xlab("") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      geom_text(label = percent(n/100)) +#
+      coord_polar("y", start=0)#
+}
+cons.pie("Fagus","cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+cons.pie <- function(genus,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(face="italic"),plot.title = element_text(size=12),#
+        panel.border = element_blank(),#
+        panel.grid=element_blank(),#
+        axis.ticks = element_blank()) +#
+      ggtitle(title) +#
+      xlab("") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      #geom_text(label = percent(n/100)) +#
+      coord_polar("y", start=0, direction=-1)#
+}
+cons.pie("Fagus","cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+cons.pie <- function(genus,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  df$label <- scales::percent(df$n)#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(face="italic"),plot.title = element_text(size=12),#
+        panel.border = element_blank(),#
+        panel.grid=element_blank(),#
+        axis.ticks = element_blank()) +#
+      ggtitle(title) +#
+      xlab("") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      geom_text(aes(x=1, y = cumsum(n) - n/2, label=label) +#
+      coord_polar("y", start=0, direction=-1)#
+}
+cons.pie <- function(genus,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  df$label <- scales::percent(df$n)#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(face="italic"),plot.title = element_text(size=12),#
+        panel.border = element_blank(),#
+        panel.grid=element_blank(),#
+        axis.ticks = element_blank()) +#
+      ggtitle(title) +#
+      xlab("") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      geom_text(aes(x=1, y = cumsum(n) - n/2, label=label)) +#
+      coord_polar("y", start=0, direction=-1)#
+}
+cons.pie("Fagus","cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+cons.pie <- function(genus,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  df$label <- scales::percent(df$n)#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(face="italic"),plot.title = element_text(size=12),#
+        panel.border = element_blank(),#
+        panel.grid=element_blank(),#
+        axis.ticks = element_blank()) +#
+      ggtitle(title) +#
+      xlab("") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      geom_label(aes(label = n / sum(n) * 100), position = position_fill(vjust = 0.5))#
+      coord_polar("y", start=0, direction=-1)#
+}
+cons.pie("Fagus","cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+cons.pie <- function(genus,save,title){#
+  df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()#
+  df$label <- scales::percent(df$n)#
+  ggplot(df, aes(x = Target_species, y = n, fill=value)) +#
+      geom_bar(stat='identity') +#
+      theme(axis.text.x = element_text(face="italic"),plot.title = element_text(size=12),#
+        panel.border = element_blank(),#
+        panel.grid=element_blank(),#
+        axis.ticks = element_blank()) +#
+      ggtitle(title) +#
+      xlab("") + ylab("\nNumber of questionnaire respondents undertaking conservation action\n") +#
+      scale_fill_discrete(name="Conservation action categories") +#
+      geom_label(aes(label = n / sum(n) * 100), position = position_fill(vjust = 0.5)) +#
+      coord_polar("y", start=0, direction=-1)#
+}
+cons.pie("Fagus","cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+df <- cons_trans %>% filter(grepl(genus,cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()
+df <- cons_trans %>% filter(grepl("Fagus",cons_trans$Target_species)) %>% group_by(Target_species,value) %>% count()
+df
+sum(df$n)
+cons.bars("Fagus",0,10,"cons_fagus.jpg",expression("Current conservation actions for "*italic(Fagus~grandifolia)*""))
+setwd("./.."); setwd("./FIA")#
+fia_raw <- read.csv("./TREE.csv")
+getwd()
+all_data7 <- read.csv("exsitu_working/exsitu_compiled_speciesFiltered.csv",header=TRUE,fileEncoding="latin1",strip.white=TRUE,colClasses="character",na.strings=c("NA",""))#
+all_data7 <- all_data7[,2:ncol(all_data7)]#
+#
+all_data7[,19:24] <- mgsub(all_data7[,19:24], c("(",")"), "")    #
+search.col <- matrix(cbind(all_data7$extra1,all_data7$extra2,all_data7$extra3,#
+                           all_data7$extra4,all_data7$extra5all_data7$extra6),nrow=3563)#
+matches <- which(search.col=="variety"|search.col=="var"|search.col=="var."|search.col=="v"|search.col=="v."|#
+                 search.col=="ssp."|search.col=="subspecies"|search.col=="ssp"|search.col=="subsp"|search.col=="subsp."|#
+                 search.col=="fo."|search.col=="forma"|search.col=="fma."|search.col=="fma"|search.col=="f."|search.col=="f"|search.col=="form"|#
+                 search.col=="infra"|search.col=="infra.",arr.ind=T)#
+matches[,2] <- matches[,2]+18#
+all_data7$infra_rank_new <- NA#
+all_data7$infra_rank_new[matches] <- all_data7[matches]#
+unique(all_data7$infra_rank_new)#
+all_data7$infra_name_new <- NA#
+matches[,2] <- matches[,2]+1#
+all_data7$infra_name_new[matches] <- all_data7[matches]#
+unique(all_data7$infra_name_new)
+library(plyr)#
+library(tidyverse) #ggplot2,dplyr,tidyr,readr,purrr,tibble,stringr,forcats#
+library(data.table)#
+library(batchtools)#
+#
+##################
+### FUNCTIONS ####
+##################
+#
+# searches for data frame columns with only NAs and removes them#
+remove.empty.col <- function(df){#
+  remove <- vector(mode = "character")#
+  for(i in 1:ncol(df)){#
+    if(sum(is.na(df[,i])) == nrow(df)){#
+      remove <- c(remove,names(df)[i])#
+      print(names(df)[i])#
+    }#
+  }#
+  if(length(remove)>0){#
+    df <-  df[,-which(names(df) %in% remove)]#
+  }#
+  return(df)#
+}#
+#
+# percent of column that is not NA#
+percent.filled <- function(df){#
+  for(i in 1:ncol(df)){#
+    print(paste(names(df)[i],": ",#
+      round((nrow(df)-sum(is.na(df[,i])))/nrow(df),3)*100,"%",sep=""))#
+  }#
+}#
+#
+#################################################################################
+# 1. Read in target taxa list and raw occurrence data#
+#################################################################################
+#
+setwd("/Users/emily/Documents/GitHub/IMLS_Beckman")#
+#
+taxon_list <- read.csv("target_taxa_with_syn.csv", header = T,#
+  na.strings=c("","NA"), colClasses="character")#
+gbif_raw <- read.csv("gbif_raw.csv",header=T,na.strings=c("","NA"),#
+  stringsAsFactors=F)#
+  gbif_raw <- remove.empty.col(gbif_raw)#
+  percent.filled(gbif_raw)#
+  gbif_raw$dataset <- "GBIF"#
+idigbio_raw <- read.csv("idigbio_raw.csv",header=T,na.strings=c("","NA"),#
+  stringsAsFactors=F)#
+  idigbio_raw <- remove.empty.col(idigbio_raw)#
+  percent.filled(idigbio_raw)#
+  idigbio_raw$dataset <- "iDigBio"#
+sernec_raw <- read.csv("sernec_raw.csv",header=T,na.strings=c("","NA"),#
+  stringsAsFactors=F)#
+  sernec_raw <- remove.empty.col(sernec_raw)#
+  percent.filled(sernec_raw)#
+  sernec_raw$dataset <- "US_Herbaria"#
+bien_raw <- read.csv("bien_raw.csv",header=T,na.strings=c("","NA"),#
+  stringsAsFactors=F)#
+  bien_raw <- remove.empty.col(bien_raw)#
+  percent.filled(bien_raw)#
+  bien_raw$dataset <- "BIEN"#
+fia_raw <- read.csv("fia_raw.csv",header=T,na.strings=c("","NA"),#
+  stringsAsFactors=F)#
+  fia_raw <- remove.empty.col(fia_raw)#
+  percent.filled(fia_raw)#
+  fia_raw$dataset <- "FIA"#
+#
+#################################################################################
+# 2. Subset and standardize column names#
+#################################################################################
+#
+# create taxon name column#
+#### hybrids may need x separated from specific epithet !!!#
+  # GBIF#
+var <- gbif_raw %>% filter(taxonRank=="VARIETY")#
+  var$taxon_name <- paste(var$genus,var$specificEpithet,"var.",#
+    var$infraspecificEpithet)#
+subsp <- gbif_raw %>% filter(taxonRank=="SUBSPECIES")#
+  subsp$taxon_name <- paste(subsp$genus,subsp$specificEpithet,"subsp.",#
+    subsp$infraspecificEpithet)#
+form <- gbif_raw %>% filter(taxonRank=="FORM")#
+  form$taxon_name <- paste(form$genus,form$specificEpithet,"f.",#
+    form$infraspecificEpithet)#
+spp <- gbif_raw %>% filter(taxonRank=="SPECIES")#
+  spp$taxon_name <- paste(spp$genus,spp$specificEpithet)#
+gbif_raw <- bind_rows(var,subsp,form,spp)#
+unique(sort(gbif_raw$taxon_name))#
+  # iDigBio#
+idigbio_raw <- idigbio_raw %>% rename(taxon_name = scientificname)#
+idigbio_raw$taxon_name <- str_to_sentence(idigbio_raw$taxon_name)#
+unique(sort(idigbio_raw$taxon_name))#
+  # US_Herbaria#
+sernec_raw <- sernec_raw %>% rename(taxon_name = scientificName)#
+sernec_raw$taxon_name <- gsub(" X "," x ",sernec_raw$taxon_name)#
+unique(sort(sernec_raw$taxon_name)) # these need work!!!!!#
+  # BIEN#
+bien_raw <- bien_raw %>% rename(taxon_name = name_matched)#
+bien_raw$taxon_name <- gsub(" fo. "," f. ",bien_raw$taxon_name)#
+unique(sort(bien_raw$taxon_name)) # are these the same as verbatim_scientific_name ??#
+  # FIA#
+fia_codes <- read.csv("FIA_AppendixF_TreeSpeciesCodes_2016.csv")#
+fia_codes <- fia_codes %>% select(SPCD,scientific_name) %>% #
+                           rename(taxon_name = scientific_name)#
+fia_raw <- join(fia_raw,fia_codes)#
+#
+datasets <- list(gbif_raw,idigbio_raw,sernec_raw,bien_raw,fia_raw)#
+  rm(gbif_raw);rm(idigbio_raw);rm(sernec_raw);rm(bien_raw);rm(fia_raw)#
+  str(datasets)#
+#
+all_data_raw <- Reduce(rbind.fill, datasets)#
+  nrow(all_data_raw) #100089#
+  ncol(all_data_raw) #1007

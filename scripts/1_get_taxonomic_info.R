@@ -18,8 +18,8 @@
       # 1. "taxon_name_match" (genus, species, infra rank, and infra name, all
       #    separated by one space each; hybrid symbol should be " x ", rather
       #    than "_" or "✕", and go between genus and species)
-      # 2+ other (can say where name came from, if you are using more
-      #    than one source list, etc.)
+      # 2+ (optional) can say where name came from, if you are using more
+      #    than one source list, etc.
 
 ### OUTPUTS:
     # taxize_tropicos.csv
@@ -490,15 +490,17 @@ all_names <- Reduce(rbind.fill,datasets)
   names(all_names)
 # join with initial taxa list
 all_names <- full_join(all_names,taxa_list_acc)
+
+# For IMLS dataset:
 # fill "NA" taxon_name with accepted name
-#all_names[which(is.na(all_names$taxon_name)),]$taxon_name <-
-#  all_names[which(is.na(all_names$taxon_name)),]$taxon_name_acc
+all_names[which(is.na(all_names$taxon_name)),]$taxon_name <-
+  all_names[which(is.na(all_names$taxon_name)),]$taxon_name_acc
 # fill taxon_name col for cultivars
-#all_names[which(all_names$taxon_type == "cultivar"),]$taxon_name <-
-#  all_names[which(all_names$taxon_type == "cultivar"),]$taxon_name_acc
+all_names[which(all_names$taxon_type == "cultivar"),]$taxon_name <-
+  all_names[which(all_names$taxon_type == "cultivar"),]$taxon_name_acc
 # fill taxon_name column for hybrid_no_x taxa
-#all_names[which(all_names$name_type=="hybrid_no_x"),]$taxon_name <-
-#  all_names[which(all_names$name_type=="hybrid_no_x"),]$taxon_name_acc
+all_names[which(all_names$name_type=="hybrid_no_x"),]$taxon_name <-
+  all_names[which(all_names$name_type=="hybrid_no_x"),]$taxon_name_acc
 
 # add a space after every period and fix some other inconsistencies,
 #  to standardize authors more
@@ -529,14 +531,24 @@ unique(all_names$status_standard)
 all_names <- setorder(all_names,status_standard)
 
 # keep unique values and create
-#   "ref" col of all databases with duplicates and
-#   "status" col of all acceptance statuses of duplicates
+#   "ref" col of all databases with duplicates,
+#   "status" col of all acceptance statuses of duplicates,
+#   "ref_id" col with id numbers from matching names, and
 unique_names <- all_names %>% group_by(taxon_name,taxon_name_match,
-  taxon_name,match_name_with_authors) %>%
+  match_name_with_authors) %>%
   summarize(ref = paste(database,collapse = ','),
   status = paste(status_standard,collapse = ','),
   ref_id = paste(match_id,collapse = ',')) %>%
   ungroup()
+# remove duplicates in ref column
+add <- setDT(unique_names)[, list(ref= toString(sort(unique(strsplit(ref,
+  ',\\s*|\\s+')[[1]])))), by = ref_id]
+unique_names <- subset(unique_names, select=-ref)
+unique_names <- join(unique_names,add)
+unique(unique_names$ref)
+# add "ref_count" column tallying number of items (databases) per taxon
+unique_names$ref_count <- str_count(unique_names$ref, ',')+1
+unique_names[which(unique_names$ref == "NA"),]$ref_count <- 0
 str(unique_names)
 
 # final standardization of status column
@@ -561,8 +573,8 @@ all_data <- all_data %>% separate("taxon_name_match",
   remove=F,fill="right")
 nrow(all_data)
 # order rows
-all_data <- setorder(all_data,"taxon_name")
-all_data <- setorder(all_data,"taxon_name_match")
+all_data <- setorderv(all_data,c("taxon_name_match","ref_count","ref",
+  "status_standard"),c(1,-1,-1,1))
 # write file
 write.csv(all_data,"taxize_all_names_raw.csv")
 
@@ -571,11 +583,11 @@ write.csv(all_data,"taxize_all_names_raw.csv")
 all_data2 <- all_data[which(is.na(all_data$infra_rank) |
   all_data$infra_rank != "f."),]
 nrow(all_data2)
-  # remove records where same match name goes with more than one taxon_name
+  # remove records where same syn match name goes with more than 1 taxon_name
 all_data2$dup <- c(duplicated(all_data2$taxon_name_match,fromLast=T)
   | duplicated(all_data2$taxon_name_match))
 all_data2 <- setdiff(all_data2,all_data2[which(
-  all_data2$status == "synonym" & all_data2$dup == T),])
+  all_data2$status_standard == "synonym" & all_data2$dup == T),])
 nrow(all_data2)
   # remove var. and subsp. records with species name already accounted for
 all_data2 <- all_data2 %>% separate("taxon_name",
@@ -586,27 +598,26 @@ all_data2 <- setdiff(all_data2,all_data2[which(
   all_data2$status_standard == "synonym"),])
 nrow(all_data2)
   # remove taxon_name_match duplicates that are not "accepted" status
-all_data2 <- setorder(all_data2,status_standard)
 all_data2 <- setdiff(all_data2,all_data2[which(
   duplicated(all_data2$taxon_name_match) &
+  duplicated(all_data2$taxon_name) &
   (!grepl("accepted",all_data2$status_standard))),])
 nrow(all_data2)
 
+# join with raw data to see removed records
+all_data2$chosen <- "Y"
+all_data3 <- full_join(all_data2,all_data)
 # keep only necessary columns
-colnames(all_data2)
-all_data2 <- dplyr::select(all_data2,taxon_name,taxon_name_match,
+colnames(all_data3)
+all_data3 <- dplyr::select(all_data3,taxon_name,taxon_name_match,
                     match_name_with_authors,ref,status_standard,
-                    ref_id:reference_only,-genus,-species,
+                    ref_id:reference_only,chosen,-genus,-species,
                     -infra_rank,-infra_name,-dup,-status,-genus2,
-                    -species2,-can_match)
+                    -species2,-can_match,-taxon_name_acc)
 # final ordering of names
-all_data2 <- setorder(all_data2,taxon_name_match)
+all_data3 <- as.data.frame(setorder(all_data3,taxon_name_match))
 # write file
-write.csv(all_data2,"taxize_all_names_new.csv")
-
-
-
-
+write.csv(all_data3,"taxize_all_names_new.csv")
 
 
 
