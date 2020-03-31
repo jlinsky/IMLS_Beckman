@@ -345,8 +345,7 @@ fia_codes <- read.csv("FIA_AppendixF_TreeSpeciesCodes_2016.csv", header = T,
   na.strings=c("","NA"), colClasses="character")
 #fia_codes <- read.csv("FIA_AppendixF_TreeSpeciesCodes_2016.csv")
   # remove unnecessary columns and rename species name column
-  fia_codes <- fia_codes %>% select(SPCD,scientific_name) %>%
-                           rename(taxon_name = scientific_name)
+  fia_codes <- fia_codes %>% select(SPCD,taxon_name,species_name)
 county_codes <- read.csv("US_state_county_FIPS_codes.csv", header = T,
   na.strings=c("","NA"), colClasses="character")
 #county_codes <- read.csv("US_state_county_FIPS_codes.csv")
@@ -396,13 +395,13 @@ head(fia_raw2)
 ################################################################################
 
 # create list of raw data frames and remove to make space
-datasets <- list(gbif_raw2,idigbio_raw2,sernec_raw2,bien_raw2,fia_raw2)
+datasets <- list(fia_raw2,gbif_raw2,idigbio_raw2,bien_raw2,sernec_raw2)
   rm(gbif_raw);rm(idigbio_raw);rm(sernec_raw);rm(bien_raw);rm(fia_raw)
   rm(gbif_raw2);rm(idigbio_raw2);rm(sernec_raw2);rm(bien_raw2);rm(fia_raw2)
   str(datasets)
 # bind everything together
 all_data_raw <- Reduce(rbind.fill, datasets)
-  nrow(all_data_raw) #8299602
+  nrow(all_data_raw) #8342476
   ncol(all_data_raw) #39
 
 # check out the species names
@@ -418,17 +417,72 @@ all_data_raw$taxon_name <- mgsub(all_data_raw$taxon_name,
     "Quercus xylina","Tilia xeuropaea","Tilia xvulgaris"),
   c("Malus x domestica","Quercus x alapensis","Quercus x anthoclada",
     "Quercus x ylina","Tilia x europaea","Tilia x vulgaris"))
+sort(unique(all_data_raw$species_name))
 
 # full join to taxon list
 all_data_raw <- left_join(all_data_raw,taxon_list)
-# join again just by species name if no match (not taxon name too)
+# join again just by species name if no taxon match
 need_match <- all_data_raw[which(is.na(all_data_raw$list)),]
 matched <- all_data_raw[which(!is.na(all_data_raw$list)),]
 need_match <- need_match[,1:(ncol(all_data_raw)-ncol(taxon_list)+2)]
 taxon_list_sp <- taxon_list[,-1]
 need_match <- left_join(need_match,taxon_list_sp)
-all_data_raw2 <- rbind(matched,need_match)
-write.csv(all_data_raw2,"all_data_raw.csv")
+all_data_raw <- rbind(matched,need_match)
 
-# checking names that got excluded.....
-no_match <- all_data_raw2[which(is.na(all_data_raw2$list)),]
+# check names that got excluded.....
+still_no_match <- all_data_raw[which(is.na(all_data_raw$list)),]
+table(still_no_match$dataset)
+sort(table(still_no_match$taxon_name))
+
+# keep only rows for target taxa
+all_data_raw2 <- all_data_raw[which(!is.na(all_data_raw$list) &
+  !is.na(all_data_raw$species_name_acc) &
+  !(is.na(all_data_raw$decimalLatitude) & is.na(all_data_raw$decimalLongitude)
+      & is.na(all_data_raw$localityDescription))),]
+nrow(all_data_raw2) #7635719
+
+# plot number of points per species
+all_data_raw2$has_coord <- "Coordinate"
+all_data_raw2[which(!is.na(all_data_raw2$decimalLatitude) &
+                   !is.na(all_data_raw2$decimalLongitude)),]$has_coord <-
+                   "Locality description"
+sort(table(all_data_raw2$species_name_acc))
+
+################################################################################
+# 4. Remove duplicates and standardize some key columns
+################################################################################
+
+# keep unique values and create
+#   "datasets" col of all databases with duplicates
+#
+all_data <- all_data_raw %>% group_by(species_name_acc) %>%
+  summarize(ref = paste(database,collapse = ','),
+  status = paste(status_standard,collapse = ','),
+  ref_id = paste(match_id,collapse = ',')) %>%
+  ungroup()
+# remove duplicates in ref column
+add <- setDT(unique_names)[, list(ref= toString(sort(unique(strsplit(ref,
+  ',\\s*|\\s+')[[1]])))), by = ref_id]
+unique_names <- subset(unique_names, select=-ref)
+unique_names <- join(unique_names,add)
+unique(unique_names$ref)
+# add "ref_count" column tallying number of items (databases) per taxon
+unique_names$ref_count <- str_count(unique_names$ref, ',')+1
+unique_names[which(unique_names$ref == "NA"),]$ref_count <- 0
+str(unique_names)
+
+# remove duplicates and sum number of plants
+df$sum_num_plt <- as.numeric(df$sum_num_plt)
+df_dec2 <- ddply(df,.(species_name_acc,lat_dd2,long_dd2,gps_det),
+                    summarise, sum_num_plants = sum(sum_num_plt)) #coll_year,
+  str(df_dec2); nrow(df_dec2) #888
+df_dec1 <- ddply(df,.(species_name_acc,lat_dd1,long_dd1,gps_det),
+                    summarise, sum_num_plants = sum(sum_num_plt)) #coll_year,
+  str(df_dec1); nrow(df_dec1) #651
+
+# replace commas with semicolon, just to be sure CSV works properly
+all_data10[] <- lapply(all_data10, function(x) gsub(",", ";", x))
+
+
+
+write.csv(all_data_raw2,"all_data_raw.csv")

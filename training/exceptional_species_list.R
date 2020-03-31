@@ -56,6 +56,9 @@ sid <- read.csv("2019_SID.csv", header = T, na.strings=c(""," ","NA"),
   colClasses="character")
     names(sid); nrow(sid) #26711
 
+# join two that should have been the same to start with
+notes2 <- full_join(notes2,dormant)
+
 ###############################################################################
 # 2. Combine duplicates
 ###############################################################################
@@ -368,6 +371,12 @@ t <- setDT(unique_names)[,list(family =
 unique_names <- unique_names %>% select(-family) %>% join(t)
 unique_names$family <- mgsub(unique_names$family,c(" NA, ","NA, ",", NA"),"")
 unique(unique_names$family)
+
+# join to World Flora Online (WFO) family names
+wfo <- read.csv("WFO_Backbone/classification.txt", header = T,
+  na.strings=c(""," ","NA"),colClasses="character")
+    names(sid); nrow(sid) #26711
+
 
 # join to taxa list
 all_data2 <- join(all_data,unique_names,type="left")

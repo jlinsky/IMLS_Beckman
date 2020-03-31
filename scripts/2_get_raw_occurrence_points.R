@@ -55,8 +55,11 @@ taxon_list <- read.csv("target_taxa_with_syn.csv", header = T,
 taxon_list <- taxon_list %>% filter(is.na(taxon_type) |
   taxon_type != "cultivar") %>% filter(!is.na(taxon_name))
 nrow(taxon_list) #784
+
 # list of target taxon names
 taxon_names <- taxon_list[,1]
+# list of target species names
+species_names <- unique(taxon_list[,2])
 
 # create vector of target genera
 target_genera <- c("Malus","Quercus","Tilia","Ulmus")
@@ -72,9 +75,9 @@ setwd("./raw_occurrence_point_data")
   # if you don't have account yet, go to https://www.gbif.org then click
   #   "Login" in top right corner, then click "Register"
   # !!! FILL THIS IN WITH YOUR INFO:
-user <- "username"
-pwd <- "password"
-email <- "email@email.org"
+user <- "ebeckman"
+pwd <- "Quercus51"
+email <- "ebeckman@mortonarb.org"
 
 # get GBIF taxon keys for all taxa in target list
 keys <- sapply(taxon_names,function(x) name_backbone(name=x)$speciesKey,
@@ -113,11 +116,11 @@ setwd(file.path(getwd(),"gbif_read_in"))
 
   # download and unzip before reading in
 gbif_download # !!! PASTE "Download key" as first argument in next two lines !!!
-occ_download_get(key="0029983-200221144449610", overwrite=TRUE)
-unzip("0029983-200221144449610.zip")
+occ_download_get(key="0031135-200221144449610", overwrite=TRUE)
+unzip("0031135-200221144449610.zip")
   # read in data
 gbif_raw <- fread("occurrence.txt",quote="")
-nrow(gbif_raw) #2339684
+nrow(gbif_raw) #2399719
 # write file
 setwd("./..")
 write.csv(gbif_raw, "gbif_raw.csv")
@@ -244,11 +247,13 @@ write.csv(bien_raw, "bien_raw.csv")
   #   and place in your working directory
 
 # read in FIA species codes
-fia_codes <- read.csv("FIA_AppendixF_TreeSpeciesCodes_2016.csv")
+setwd("./..")
+fia_codes <- read.csv("FIA_AppendixF_TreeSpeciesCodes_2016.csv",
+  colClasses="character")
 # join taxa list to FIA species codes
-names(fia_codes) <- c("fia_code","fia_common_name","taxon_name")
+names(fia_codes) <- c("fia_code","fia_common_name","taxon_name","species_name")
   glimpse(fia_codes)
-taxon_list <- join(taxon_list,fia_codes,type="left")
+taxon_list <- left_join(taxon_list,fia_codes,by="species_name")
 # make a list of unique FIA species codes to select from the data
 species_codes <- sort(unique(taxon_list$fia_code))
 sort(unique(taxon_list$taxon_name_acc[which(!is.na(taxon_list$fia_code))]))
@@ -279,8 +284,8 @@ extract_tree_data <- function(file_name){
 # make a new data frame to gather data for target taxa
 fia_raw <- data.frame()
 # create list of state files
-file_list <- list.files(path = "fia_read_in", pattern = ".csv",
-  full.names = T)
+file_list <- list.files(path = "raw_occurrence_point_data/fia_read_in",
+  pattern = ".csv",full.names = T)
 # loop through states and pull data using the function defined above
 fia_outputs <- lapply(file_list, extract_tree_data)
   length(fia_outputs) #50
@@ -290,4 +295,4 @@ for(file in seq_along(fia_outputs)){
   fia_raw  <- rbind(fia_raw , fia_outputs[[file]])
 }; nrow(fia_raw) #3086137
 # write file
-write.csv(fia_raw, "fia_raw.csv")
+write.csv(fia_raw,"raw_occurrence_point_data/fia_raw.csv")
