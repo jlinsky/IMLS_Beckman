@@ -435,54 +435,85 @@ table(still_no_match$dataset)
 sort(table(still_no_match$taxon_name))
 
 # keep only rows for target taxa
-all_data_raw2 <- all_data_raw[which(!is.na(all_data_raw$list) &
+all_data_raw <- all_data_raw[which(!is.na(all_data_raw$list) &
   !is.na(all_data_raw$species_name_acc) &
   !(is.na(all_data_raw$decimalLatitude) & is.na(all_data_raw$decimalLongitude)
       & is.na(all_data_raw$localityDescription))),]
-nrow(all_data_raw2) #7635719
+nrow(all_data_raw) #7635719
 
-# plot number of points per species
-all_data_raw2$has_coord <- "Coordinate"
-all_data_raw2[which(!is.na(all_data_raw2$decimalLatitude) &
-                   !is.na(all_data_raw2$decimalLongitude)),]$has_coord <-
-                   "Locality description"
-sort(table(all_data_raw2$species_name_acc))
 
 ################################################################################
 # 4. Remove duplicates and standardize some key columns
 ################################################################################
 
-# keep unique values and create
-#   "datasets" col of all databases with duplicates
-#
-all_data <- all_data_raw %>% group_by(species_name_acc) %>%
-  summarize(ref = paste(database,collapse = ','),
-  status = paste(status_standard,collapse = ','),
-  ref_id = paste(match_id,collapse = ',')) %>%
+# fix year column
+all_data_raw$year <- as.numeric(all_data_raw$year)
+all_data_raw$year[which(all_data_raw$year < 1000)] <- NA
+unique(all_data_raw$year) #check
+all_data_raw$year[which(all_data_raw$year == 18914)] <- 1891
+all_data_raw$year[which(all_data_raw$year == 19418)] <- 1941
+all_data_raw$year[which(all_data_raw$year == 9999)] <- NA
+
+# sort before removing dups
+all_data_raw <- setorder(all_data_raw,-year,na.last=T)
+
+# create rounded latitude and longitude columns for removing dups
+all_data_raw$lat_round <- round(all_data_raw$decimalLatitude,digits=3)
+all_data_raw$long_round <- round(all_data_raw$decimalLongitude,digits=3)
+
+# remove duplicates; only keep points with coordinates
+all_data <- all_data_raw %>%
+  filter(!is.na(decimalLatitude) & !is.na(decimalLongitude)) %>%
+  #group_by(species_name_acc,lat_round,long_round) %>%
+  #mutate(source_databases = paste(dataset,collapse = ',')) %>%
+  distinct(species_name_acc,lat_round,long_round,dataset,.keep_all=T) %>%
   ungroup()
-# remove duplicates in ref column
-add <- setDT(unique_names)[, list(ref= toString(sort(unique(strsplit(ref,
-  ',\\s*|\\s+')[[1]])))), by = ref_id]
-unique_names <- subset(unique_names, select=-ref)
-unique_names <- join(unique_names,add)
-unique(unique_names$ref)
-# add "ref_count" column tallying number of items (databases) per taxon
-unique_names$ref_count <- str_count(unique_names$ref, ',')+1
-unique_names[which(unique_names$ref == "NA"),]$ref_count <- 0
-str(unique_names)
+# remove duplicates in source_databases column
+#s <- lapply(all_data$source_databases, function(x) unlist(strsplit(x,split=",")))
+#source_standard <- as.data.frame(unlist(lapply(s,function(x) paste(unique(x),collapse=','))))
+#names(source_standard)[1] <- "source_databases_all"
+#all_data <- cbind(all_data,source_standard)
+#all_data <- all_data %>% select(-source_databases)
+write.csv(all_data,"all_data_raw_coordinates_noDups.csv")
 
-# remove duplicates and sum number of plants
-df$sum_num_plt <- as.numeric(df$sum_num_plt)
-df_dec2 <- ddply(df,.(species_name_acc,lat_dd2,long_dd2,gps_det),
-                    summarise, sum_num_plants = sum(sum_num_plt)) #coll_year,
-  str(df_dec2); nrow(df_dec2) #888
-df_dec1 <- ddply(df,.(species_name_acc,lat_dd1,long_dd1,gps_det),
-                    summarise, sum_num_plants = sum(sum_num_plt)) #coll_year,
-  str(df_dec1); nrow(df_dec1) #651
+# see how many points there may be with locality descriptions
+all_data_local <- all_data_raw %>%
+  filter(is.na(decimalLatitude) & is.na(decimalLongitude)) %>%
+  #group_by(species_name_acc,localityDescription) %>%
+  #mutate(source_databases = paste(dataset,collapse = ',')) %>%
+  distinct(species_name_acc,localityDescription,dataset,.keep_all=T) %>%
+  ungroup()
+#s <- lapply(all_data_local$source_databases, function(x) unlist(strsplit(x,split=",")))
+#source_standard <- as.data.frame(unlist(lapply(s,function(x) paste(unique(x),collapse=','))))
+#names(source_standard)[1] <- "source_databases_all"
+#all_data_local <- cbind(all_data_local,source_standard)
+#all_data_local <- all_data_local %>% select(-source_databases)
 
-# replace commas with semicolon, just to be sure CSV works properly
-all_data10[] <- lapply(all_data10, function(x) gsub(",", ";", x))
+# plot number of points per species
+all_data$has_coord <- "Coordinate"
+all_data_local$has_coord <- "Locality description"
+to_plot <- rbind(all_data,all_data_local)
+to_plot <- to_plot %>% count(species_name_acc,has_coord,dataset,sort=T)
+write.csv(to_plot,"counts_per_species.csv")
 
+ggplot(to_plot, aes(x = species_name_acc,
+                    y = n,
+                    fill = has_coord)) +
+                geom_col() +
+                scale_y_continuous(limits = c(0,200))
 
+ggplot(to_plot, aes(x = species_name_acc,
+                y = n,
+                fill = has_coord)) +
+    geom_col() +
+    facet_wrap(~dataset) +
+    scale_y_continuous(limits = c(0,200))
+
+ggplot(data=datos,aes(x = dia, y = PRECIP)) +
+    geom_bar(colour = "blue",stat = "identity") +
+    ylab("Precipitación (l)") +
+    xlab("Hora solar") +
+    opts(title = "Precipitacion acumulada horaria \n 2008-05-27 Burriana") +
+    scale_y_continuous(limits = c(0,50))
 
 write.csv(all_data_raw2,"all_data_raw.csv")
