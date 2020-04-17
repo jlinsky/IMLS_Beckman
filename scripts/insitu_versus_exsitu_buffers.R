@@ -50,32 +50,32 @@ calc.buffer.area <- function(latlong,df,radius){
 # create map to visualize buffer and point data
 map.buffers <- function(insitu_coords,insitu,exsitu_coords,exsitu,title,radius){
 	map <- leaflet() %>%
-		addProviderTiles("CartoDB.PositronNoLabels",
-  								   options = providerTileOptions(maxZoom = 10)) %>%
-		addPolygons(data = view.buffers(insitu_coords,insitu,radius),
-								smoothFactor = 0.5, weight = 2, color = "red") %>%
-		addPolygons(data = view.buffers(exsitu_coords,exsitu,radius),
-								smoothFactor = 0.5, weight = 2, color = "blue") %>%
-  	addCircleMarkers(data = insitu,
-									   lng = ~Longitude, lat = ~Latitude,
-    					 		 	 popup = ~paste("In situ:", Pop),
-      						 	 radius = 4, fillOpacity = 0.7, stroke = F,
-								 	   color = "red") %>%
-  	addCircleMarkers(data = exsitu,
-									 	 lng = ~long, lat = ~lat,
-									 	 popup = ~paste("Ex situ institution:",institution,"<br/>",
-									 								  "Lat-long source:",gps_det,"<br/>",
-																	  "Collection year:",aqu_year),
-      						 	 radius = 4, fillOpacity = 0.7, stroke = F,
-								 	 	 color = "blue") %>%
-  	addControl(title, position = "topright") %>%
-		addControl("Click on points to see more information",
-							 position = "topleft") %>%
-		addLegend(labels = c("In situ","Ex situ"),
-    					colors = c("red","blue"),
-    					title = "Key",
-    					position = "topright",
-    					opacity = 0.75)
+		addProviderTiles(
+			"CartoDB.PositronNoLabels",
+			options = providerTileOptions(maxZoom = 10)) %>%
+		addPolygons(
+			data = view.buffers(insitu_coords,insitu,radius), smoothFactor = 0.5,
+			weight = 2, color = "red") %>%
+		addPolygons(
+			data = view.buffers(exsitu_coords,exsitu,radius), smoothFactor = 0.5,
+			weight = 2, color = "blue") %>%
+  	addCircleMarkers(
+			data = insitu, lng = ~Longitude, lat = ~Latitude,
+    	popup = ~paste("In situ:", Pop), radius = 4, fillOpacity = 0.7,
+			stroke = F, color = "red") %>%
+  	addCircleMarkers(
+			data = exsitu, lng = ~long, lat = ~lat,
+			popup = ~paste("Ex situ institution:",institution,"<br/>",
+				"Lat-long source:",gps_det,"<br/>",
+				"Collection year:",aqu_year),
+      radius = 4, fillOpacity = 0.7, stroke = F, color = "blue") %>%
+  	addControl(
+			title, position = "topright") %>%
+		addControl(
+			"Click on points to see more information", position = "topleft") %>%
+		addLegend(
+			labels = c("In situ","Ex situ"), colors = c("red","blue"), title = "Key",
+    	position = "topright", opacity = 0.75)
 	return(map)
 }
 
