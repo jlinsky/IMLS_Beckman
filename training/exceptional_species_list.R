@@ -45,19 +45,16 @@ setwd("./Desktop")
 # read in lists
 h_wallace <- read.csv("2015_helm_wallace.csv", header = T,
   na.strings=c("","NA"),colClasses="character")
-    names(h_wallace); nrow(h_wallace) #618
+    names(h_wallace); nrow(h_wallace) #615
 notes1 <- read.csv("2017_notes.csv", header = T, na.strings=c(""," ","NA"),
   colClasses="character")
-    names(notes1); nrow(notes1) #3507
+    names(notes1); nrow(notes1) #3504
 notes2 <- read.csv("2019_notes.csv", header = T, na.strings=c(""," ","NA"),
   colClasses="character")
-    names(notes2); nrow(notes2) #1060
+    names(notes2); nrow(notes2) #1089
 sid <- read.csv("2019_SID.csv", header = T, na.strings=c(""," ","NA"),
   colClasses="character")
     names(sid); nrow(sid) #26711
-
-# join two that should have been the same to start with
-notes2 <- full_join(notes2,dormant)
 
 ###############################################################################
 # 2. Combine duplicates
@@ -83,7 +80,7 @@ duplicates <- duplicates %>% group_by(taxon_name,SID_family) %>%
   ungroup() %>% filter(!duplicated(taxon_name))
 duplicates <- as.data.frame(duplicates)
 # create one full dataset with all duplicates removed
-unique_sid2 <- rbind(unique_sid2,duplicates); nrow(unique_sid2)
+unique_sid2 <- rbind(unique_sid2,duplicates); nrow(unique_sid2) #24713
 unique_sid2 <- unique_sid2 %>% select(-dup)
 
 ###############################################################################
@@ -127,7 +124,7 @@ unique_sid2$taxon_name <- str_squish(unique_sid2$taxon_name)
 # join everything together by taxon_name
 all_df <- list(h_wallace,notes1,notes2,unique_sid2)
 all_data <- Reduce(full_join,all_df)
-  str(all_data)
+  str(all_data) #28416
 
 # condense taxon_name_notes columns into one
 all_data <- tidyr::unite(all_data,"taxon_name_notes",
@@ -160,8 +157,8 @@ glimpse(all_data) # Observations: 28,392
 write.csv(all_data,"exceptional_species_match.csv")
 
 ###############################################################################
-# 6. Create data frame of The Plant List (TPL) and International
-#    Plant Names Index (IPNI) accepted names
+# 6. Create data frame of The Plant List (TPL), International
+#    Plant Names Index (IPNI), and World Flora Online (WFO) accepted names
 ###############################################################################
 
 # download all accepted TPL names; takes a LONG time
@@ -193,13 +190,14 @@ setnames(tpl_names2,
         "Taxonomic.status.in.TPL","Genus","Species.hybrid.marker","Species",
         "Infraspecific.rank","Infraspecific.epithet"),
   new=c("family","taxonomic_source_id","taxonomic_author",
-        "taxonomic_confidence","taxonomic_source","tpl_status","genus",
-        "hybrid","species","infra_rank","infra_name"), skip_absent=T)
+        "taxonomic_confidence","taxonomic_source","taxonomic_status","genus",
+        "hybrid","species","infra_rank","infra_name"),
+  skip_absent=T)
 # add column stating source database
 tpl_names2$taxonomic_database <- "TPL"
 # remove duplicate names that are not accepted
 tpl_names3 <- setdiff(tpl_names2,tpl_names2[
-  which(tpl_names2$tpl_status != "Accepted" &
+  which(tpl_names2$taxonomic_status != "Accepted" &
   (duplicated(tpl_names2$taxon_name, fromLast = TRUE) |
    duplicated(tpl_names2$taxon_name))),])
 nrow(tpl_names2); nrow(tpl_names3)
@@ -232,18 +230,49 @@ glimpse(ipni_names2)
 setnames(ipni_names2,
   old=c("id","infra_species","rank","authors","full_name_without_authors"),
   new=c("taxonomic_source_id","infra_name","infra_rank","taxonomic_author",
-        "taxon_name"), skip_absent=T)
+        "taxon_name"),
+  skip_absent=T)
 # replace hybrid character
 ipni_names2$taxon_name <- gsub(" × "," x ",ipni_names2$taxon_name,fixed=T)
 ipni_names2$taxon_name <- gsub("^× ","x ",ipni_names2$taxon_name)
 # add column stating source database
 ipni_names2$taxonomic_database <- "IPNI"
-# remove duplicates names, starting with older verions (this may be arbitrary..)
+# add taxonomic status column
+ipni_names2$taxonomic_status <- "Accepted"
+# remove duplicates names, starting with older verions (this may be arbitrary?)
 ipni_names3 <- distinct(ipni_names2,taxon_name,.keep_all=T)
 nrow(ipni_names2); nrow(ipni_names3)
 
-# stack all names from TPL and IPNI
-taxonomic_names <- rbind.fill(tpl_names3,ipni_names3)
+# download WFO taxonomic data
+#   go to:  http://www.worldfloraonline.org/downloadData;jsessionid=94916E1F29B8ADFF5353032114B66D0E
+#   scroll down to "Latest Static Version:" and click link to download
+#   unzip the folder
+# read in table
+wfo_names <- read.delim("WFO_Backbone/classification.txt",
+  colClasses="character")
+# keep only relevant columns
+wfo_names2 <- wfo_names %>% select("scientificName","family","taxonID","genus",
+  "specificEpithet","infraspecificEpithet","taxonRank",
+  "scientificNameAuthorship","taxonomicStatus","references")
+# standardize column names for joining later
+glimpse(wfo_names2)
+setnames(wfo_names2,
+  old=c("scientificName","taxonID","specificEpithet","infraspecificEpithet",
+    "taxonRank","scientificNameAuthorship","taxonomicStatus","references"),
+  new=c("taxon_name","taxonomic_source_id","species","infra_name",
+    "infra_rank","taxonomic_author","taxonomic_status","taxonomic_source"),
+  skip_absent=T)
+# add column stating source database
+wfo_names2$taxonomic_database <- "WFO"
+# remove duplicate names that are not accepted
+wfo_names3 <- setdiff(wfo_names2,wfo_names2[
+  which(wfo_names2$taxonomic_status != "Accepted" &
+  (duplicated(wfo_names2$taxon_name, fromLast = TRUE) |
+   duplicated(wfo_names2$taxon_name))),])
+nrow(wfo_names2); nrow(wfo_names3)
+
+# stack all names from TPL, IPNI, and WFO
+taxonomic_names <- rbind.fill(tpl_names3,ipni_names3,wfo_names3)
 glimpse(taxonomic_names)
 # keep unique values and create
 #   "ref" col of all databases with duplicates,
@@ -255,11 +284,12 @@ unique_names <- taxonomic_names %>% group_by(taxon_name) %>%
     taxonomic_source_id = paste(taxonomic_source_id,collapse = ';'),
     family = paste(family,collapse = ';'),
     taxonomic_author = paste(taxonomic_author,collapse = ';'),
-    taxonomic_status = paste(tpl_status,collapse = ';')
+    taxonomic_status = paste(taxonomic_status,collapse = ';')
   ) %>%
   ungroup()
 glimpse(unique_names)
 # remove duplicates in ref column
+unique(unique_names$taxonomic_database)
 unique_names$taxonomic_database <- gsub("TPL;TPL","TPL",
                                         unique_names$taxonomic_database)
 
@@ -356,7 +386,7 @@ unique_names <- taxonomic_names %>% group_by(taxon_name) %>%
     taxonomic_source_id = paste(taxonomic_source_id,collapse = ';'),
     family = paste(family,collapse = ';'),
     taxonomic_author = paste(taxonomic_author,collapse = ';'),
-    taxonomic_status = paste(tpl_status,collapse = ';')
+    taxonomic_status = paste(taxonomic_status,collapse = ';')
   ) %>%
   ungroup()
 glimpse(unique_names)
@@ -372,10 +402,6 @@ unique_names <- unique_names %>% select(-family) %>% join(t)
 unique_names$family <- mgsub(unique_names$family,c(" NA, ","NA, ",", NA"),"")
 unique(unique_names$family)
 
-# join to World Flora Online (WFO) family names
-wfo <- read.csv("WFO_Backbone/classification.txt", header = T,
-  na.strings=c(""," ","NA"),colClasses="character")
-    names(sid); nrow(sid) #26711
 
 
 # join to taxa list
