@@ -30,12 +30,8 @@ calc.buffer.area <- function(df,radius){
 	# select coordinate columns
 	latlong <- df %>% select(longitude,latitude)
 	# turn occurrence point data into a SpatialPointsDataFrame
-	wgs.proj <- CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84
-		+no_defs +towgs84=0,0,0")
 	wgs_df <- SpatialPointsDataFrame(latlong, df, proj4string = wgs.proj)
 	# reproject SpatialPointsDataFrame to projection with meters as unit
-	aea.proj <- CRS("+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-110
-		+x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m")
 	aea_df <- spTransform(wgs_df,aea.proj)
 	# place buffer around each point
 	buffer_aea <- buffer(aea_df,width=radius,dissolve=T)
@@ -47,11 +43,9 @@ calc.buffer.area <- function(df,radius){
 }
 
 # create data frame with ecoregion data extracted for each spatial point
-extract.ecoregions <- function(df){
-	# turn occurrence points into spatial points
+extract.ecoregions.pts <- function(df){
+	# turn occurrence points into SpatialPoints
 	latlong <- df %>% select(longitude,latitude)
-	wgs.proj <- CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84
-		+no_defs +towgs84=0,0,0")
 	pts_wgs <- SpatialPoints(latlong, proj4string = wgs.proj)
 	# pull ecoregion data at each spatial point
 	df_eco <- extract(ecoregions_wgs,pts_wgs)
@@ -60,13 +54,26 @@ extract.ecoregions <- function(df){
 	return(df_eco)
 }
 
+# create data frame with ecoregion data extracted for area covered by buffers
+extract.ecoregions.buffer <- function(df,radius){
+	# turn occurrence point data into a SpatialPointsDataFrame
+	latlong <- df %>% select(longitude,latitude)
+	wgs_df <- SpatialPointsDataFrame(latlong, df, proj4string = wgs.proj)
+	# reproject SpatialPointsDataFrame to projection with meters as unit
+	aea_df <- spTransform(wgs_df,aea.proj)
+	# place buffer around each point
+	buff <- buffer(aea_df,width=radius,dissolve=T)
+	# intersect buffers with ecoregions
+	eco_buff_join <- raster::intersect(buff,ecoregions_aea)
+	# return ecoregions which intersect with buffers
+	return(eco_buff_join)
+}
+
 # create buffers around spatial points, for viewing with leaflet
 view.buffers <- function(df,radius){
 	# select coordinate columns
 	latlong <- df %>% select(longitude,latitude)
 	# turn occurrence point data into a SpatialPointsDataFrame
-	wgs.proj <- CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84
-		+no_defs +towgs84=0,0,0")
 	wgs_df <- SpatialPointsDataFrame(latlong, df, proj4string = wgs.proj)
 	# place buffer around each point
 	buffer_wgs <- buffer(wgs_df,width=radius,dissolve=T)
@@ -94,7 +101,8 @@ map.buffers <- function(insitu,exsitu,title,radius){
 			data = exsitu, lng = ~longitude, lat = ~latitude,
 			popup = ~paste("Ex situ institution:",institution,"<br/>",
 				"Lat-long source:",gps_det,"<br/>",
-				"Collection year:",aqu_year),
+				"Collection year:",aqu_year,"<br/>",
+				"Accession number:",acc_no),
 			radius = 4, fillOpacity = 0.7, stroke = F, color = "blue") %>%
 		addControl(
 			title, position = "topright") %>%
@@ -110,22 +118,27 @@ map.buffers <- function(insitu,exsitu,title,radius){
 # A) Read in data
 ################################################################################
 
-setwd("Desktop")
+setwd("./../..")
+setwd("/Volumes/GoogleDrive/My Drive/Q_havardii_buffer_test")
+
+### POINT DATA
 
 # read in point data
 insitu <- read.csv("BeckHob_QHOccur_Vetted.csv", as.is=T, na.strings=c("","NA"))
-	# round coordinates
-	insitu$Longitude <- round(insitu$Longitude,5)
-	insitu$Latitude <- round(insitu$Latitude,5)
-exsitu <- read.csv("havardii_exsitu_2017_AllUSSPRecords.csv", as.is=T,
+exsitu <- read.csv("havardii_exsitu_2017and2019_AllUSSpRecords.csv", as.is=T,
 	na.strings=c("","NA"))
-	exsitu$long <- round(exsitu$long,5)
-	exsitu$lat <- round(exsitu$lat,5)
 
 # be sure all exsitu points are included in the insitu data
+	# round coordinates before joining
+insitu$longitude <- round(insitu$longitude,5)
+insitu$latitude <- round(insitu$latitude,5)
+exsitu$longitude <- round(exsitu$longitude,5)
+exsitu$latitude <- round(exsitu$latitude,5)
+	# select columns to join
 exsitu_add <- exsitu %>% select(latitude,longitude,east_west) %>% distinct()
+	# join unique ex situ points to in situ points
 insitu <- full_join(insitu,exsitu_add)
-insitu[which(is.na(insitu$Pop)),]$Pop <- "exsitu_survey_2017"
+insitu[which(is.na(insitu$Pop)),]$Pop <- "exsitu_survey"
 insitu
 
 # recode gps determination column in exsitu data
@@ -141,12 +154,20 @@ insitu_w <- insitu %>% filter(east_west == "W")
 exsitu_e <- exsitu %>% filter(east_west == "E")
 exsitu_w <- exsitu %>% filter(east_west == "W")
 
+### POLYGONS
+
 # read in shapefile of ecoregions and state boundaries
 ecoregions <- readOGR("us_eco_l4_state_boundaries/us_eco_l4.shp")
-# reproject ecoregions to match spatial point projection
+
+# define projections we will be using
+aea.proj <- CRS("+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-110
+	+x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m")
 wgs.proj <- CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84
 	+no_defs +towgs84=0,0,0")
-ecoregions_wgs <- spTransform(ecoregions, wgs.proj)
+
+# reproject ecoregions for other uses
+ecoregions_wgs <- spTransform(ecoregions,wgs.proj)
+ecoregions_aea <- spTransform(ecoregions,aea.proj)
 
 ################################################################################
 # B) Calculate geographic coverage (buffer areas)
@@ -199,14 +220,14 @@ g_coverage_10_west <- round((exsitu_buff_10_w/insitu_buff_10_w)*100,2)
 	g_coverage_10_west, "%", sep = "")
 
 ################################################################################
-# C) Calculate ecological coverage (ecoregion counts)
+# C) Calculate ecological coverage using points (ecoregion counts)
 ################################################################################
 
 ### OVERALL
 
 # extract ecoregion data for each spatial point
-insitu_eco <- extract.ecoregions(insitu)
-exsitu_eco <- extract.ecoregions(exsitu)
+insitu_eco <- extract.ecoregions.pts(insitu)
+exsitu_eco <- extract.ecoregions.pts(exsitu)
 
 # count number Level 4 ecoregions with occurrence points and calculate coverage
 insitu_eco_4 <- insitu_eco %>% count(US_L4CODE) %>% count()
@@ -263,7 +284,41 @@ e_coverage_3_west <- round((exsitu_eco_3_w[[1]]/insitu_eco_3_w[[1]])*100,2)
 	e_coverage_3_west, "%", sep = "")
 
 ################################################################################
-# D) View summary results tables
+# D) Calculate ecological coverage using buffers (ecoregion counts)
+################################################################################
+
+### OVERALL
+
+# extract ecoregion data under buffers
+insitu_eco_buff <- extract.ecoregions.buffer(insitu,50000)
+exsitu_eco_buff <- extract.ecoregions.buffer(exsitu,50000)
+
+# count number Level 4 ecoregions under buffers and calculate coverage
+insitu_eco_buff_4 <- insitu_eco_buff@data %>% count(US_L4CODE) %>% count()
+exsitu_eco_buff_4 <- exsitu_eco_buff@data %>% count(US_L4CODE) %>% count()
+e_coverage_buff_4 <- round((exsitu_eco_buff_4[[1]]/
+	insitu_eco_buff_4[[1]])*100,2)
+	paste("Percent coverage using Level IV ecoregions: ",
+	e_coverage_buff_4, "%", sep = "")
+
+# count number Level 3 ecoregions under buffers and calculate coverage
+insitu_eco_buff_3 <- insitu_eco_buff@data %>% count(US_L3CODE) %>% count()
+exsitu_eco_buff_3 <- exsitu_eco_buff@data %>% count(US_L3CODE) %>% count()
+e_coverage_buff_3 <- round((exsitu_eco_buff_3[[1]]/
+	insitu_eco_buff_3[[1]])*100,2)
+	paste("Percent coverage using Level III ecoregions: ",
+	e_coverage_buff_3, "%", sep = "")
+
+### EAST ONLY
+
+# extract ecoregion data under buffers
+insitu_eco_buff_e <- extract.ecoregions.buffer(insitu_e,50000)
+exsitu_eco_buff_e <- extract.ecoregions.buffer(exsitu_w,50000)
+
+### WEST ONLY
+
+################################################################################
+# E) View summary results tables
 ################################################################################
 
 ### GEOGRAPHIC COVERAGE
