@@ -4,6 +4,8 @@
   # This script creates circular buffers around in situ and ex situ points and
 	#		calculates the percent coverage based on area of buffers and number of
 	#		EPA Level IV Ecoregions within the buffers
+	# Right now the script is running for Quercus havardii, based on ex situ
+	#		surveys in 2017 and 2019 and in situ points curated by Sean Hoban lab
 
 ### INPUTS:
   # in situ points, with at least "latitude" and "longitude" columns
