@@ -10,7 +10,7 @@
 ### INPUTS:
   # in situ points, with at least "latitude" and "longitude" columns
 	#		("BeckHob_QHOccur_Vetted.csv")
-	# ex situ points, with at least "latitude" and "longitude"
+	# ex situ points, with at least "latitude" and "longitude" columns
 	#		("havardii_exsitu_2017and2019_AllUSSpRecords.csv")
 	# shapefile of EPA Level IV Ecoregions
 	#		("us_eco_l4_state_boundaries/us_eco_l4.shp")
@@ -34,10 +34,6 @@
 	# Could make more flexible by creating list of populations then cycling
 	# 	through all functions to get data for each popuatlion, versus hard
 	#		coding 'east' and 'west'
-	# Other aspects could be made more flexible, especially beginning when
-	#		reading in data; right now the user just has to change these sections
-	#		before proceeding
-
 
 ################################################################################
 
