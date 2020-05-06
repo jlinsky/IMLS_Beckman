@@ -8,25 +8,27 @@
 	#		surveys in 2017 and 2019 and in situ points curated by Sean Hoban lab
 
 ### INPUTS:
-  # in situ points, with at least "latitude" and "longitude" columns
-	#		("BeckHob_QHOccur_Vetted.csv")
-	# ex situ points, with at least "latitude" and "longitude" columns
-	#		("havardii_exsitu_2017and2019_AllUSSpRecords.csv")
+	# all points, with ex situ marked ("BeckHob_QHOccur_Vetted_plusExSitu.csv")
 	# shapefile of EPA Level IV Ecoregions
 	#		("us_eco_l4_state_boundaries/us_eco_l4.shp")
 	# 	("us_eco_l4/us_eco_l4_no_st.shp") # this one is uesd for mapping
+
+	##OLD# in situ points, with at least "latitude" and "longitude" columns
+	##		("BeckHob_QHOccur_Vetted.csv")
+	##OLD# ex situ points, with at least "latitude" and "longitude" columns
+	##		("havardii_exsitu_2017and2019_AllUSSpRecords.csv")
 
 ### OUTPUTS:
   # Table: Geographic Coverage (%)
 		#                  All     East     West
 		# -------------  -------  -------  -------
-		# 50 km Buffer    32.96    31.82    35.90
-		# 10 km Buffer    18.86    17.78    23.71
+		# 50 km Buffer    24.23    20.87    32.94
+		# 10 km Buffer    13.19    11.31    21.39
 	# Table: Ecological Coverage (%)
 		#                  All     East     West
 		# -------------  -------  -------  -------
-		# 50 km Buffer    52.44    51.22    53.49
-		# 10 km Buffer    47.06    45.16    47.62
+		# 50 km Buffer    45.12    34.15    53.49
+		# 10 km Buffer    35.29    29.03    42.86
 	# leaflet map with 50 km buffers
 	# leaflet map with 10 km buffers
 
@@ -119,12 +121,13 @@ map.buffers <- function(insitu,exsitu,title,radius,eco){
 		addPolygons(data = create.buffers(exsitu,radius,wgs.proj,wgs.proj),
 			smoothFactor = 0.5, weight = 2, color = "black") %>%
 		addCircleMarkers(data = insitu, lng = ~longitude, lat = ~latitude,
-			popup = ~paste("In situ:", Pop), radius = 4, fillOpacity = 0.7,
-			stroke = F, color = "red") %>%
+			popup = ~paste("In situ:", Pop),
+			radius = 4, fillOpacity = 0.7, stroke = F, color = "red") %>%
 		addCircleMarkers(data = exsitu, lng = ~longitude, lat = ~latitude,
-			popup = ~paste("Ex situ institution:",institution,"<br/>",
-				"Lat-long source:",gps_det,"<br/>","Collection year:",aqu_year,"<br/>",
-				"Accession number:",acc_no),
+			#popup = ~paste("Ex situ institution:",institution,"<br/>",
+			#	"Lat-long source:",gps_det,"<br/>","Collection year:",aqu_year,"<br/>",
+			#	"Accession number:",acc_no),
+			popup = ~paste("Ex situ:", Pop),
 			radius = 4, fillOpacity = 0.7, stroke = F, color = "black") %>%
 		addControl(title, position = "topright") %>%
 		addControl("Click on points to see more information",
@@ -150,27 +153,33 @@ aea.proj <- CRS("+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-110
 
 ### POINT DATA
 
-# read in point data
-insitu <- read.csv("BeckHob_QHOccur_Vetted.csv", as.is=T, na.strings=c("","NA"))
-exsitu <- read.csv("havardii_exsitu_2017and2019_AllUSSpRecords.csv", as.is=T,
+pts <- read.csv("BeckHob_QHOccur_Vetted_plusExSitu.csv", as.is=T,
 	na.strings=c("","NA"))
+insitu <- pts
+exsitu <- pts[which(!is.na(pts$ex_situ)),]
+
+# read in point data
+#insitu <- read.csv("BeckHob_QHOccur_Vetted.csv", as.is=T, na.strings=c("","NA"))
+#exsitu <- read.csv("havardii_exsitu_2017and2019_AllUSSpRecords.csv", as.is=T,
+#	na.strings=c("","NA"))
+
 # be sure all exsitu points are included in the insitu data
 	# round coordinates before joining
-insitu$longitude <- round(insitu$longitude,5)
-insitu$latitude <- round(insitu$latitude,5)
-exsitu$longitude <- round(exsitu$longitude,5)
-exsitu$latitude <- round(exsitu$latitude,5)
+#insitu$longitude <- round(insitu$longitude,5)
+#insitu$latitude <- round(insitu$latitude,5)
+#exsitu$longitude <- round(exsitu$longitude,5)
+#exsitu$latitude <- round(exsitu$latitude,5)
 	# select columns to join
-exsitu_add <- exsitu %>% select(latitude,longitude,east_west) %>% distinct()
+#exsitu_add <- exsitu %>% select(latitude,longitude,east_west) %>% distinct()
 	# join unique ex situ points to in situ points
-insitu <- full_join(insitu,exsitu_add)
-insitu[which(is.na(insitu$Pop)),]$Pop <- "exsitu_survey"
+#insitu <- full_join(insitu,exsitu_add)
+#insitu[which(is.na(insitu$Pop)),]$Pop <- "exsitu_survey"
 # recode gps determination column in exsitu data
-exsitu <- exsitu %>%
-  mutate(gps_det = recode(gps_det,
-         "G" = "Provided by institution",
-         "L" = "Locality description",
-				 "C" = "County centroid"))
+#exsitu <- exsitu %>%
+#  mutate(gps_det = recode(gps_det,
+#         "G" = "Provided by institution",
+#         "L" = "Locality description",
+#				 "C" = "County centroid"))
 # create subsets for eastern population and western population
 insitu_e <- insitu %>% filter(east_west == "E")
 insitu_w <- insitu %>% filter(east_west == "W")
