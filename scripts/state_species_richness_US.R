@@ -27,7 +27,7 @@ rm(my.packages)
 # Read in data
 ################################################################################
 
-setwd("./Desktop")
+setwd("./Desktop/work")
 
 # READ IN POLYGONS
 
@@ -37,9 +37,9 @@ states_shp <- readOGR("cb_2018_us_state_5m/cb_2018_us_state_5m.shp")
 	# https://www.arcgis.com/home/item.html?id=2ca75003ef9d477fb22db19832c9554f
 world_shp <- readOGR("countries_shp/countries.shp")
 	# https://www.usgs.gov/core-science-systems/science-analytics-and-synthesis/gap/science/pad-us-data-download?qt-science_center_objects=0#qt-science_center_objects
-PA_d <- readOGR("PADUS2_0_Shapefiles/PADUS2_0Designation.shp")
-PA_e <- readOGR("PADUS2_0_Shapefiles/PADUS2_0Easement.shp")
-PA_f <- readOGR("PADUS2_0_Shapefiles/PADUS2_0Fee.shp")
+#PA_d <- readOGR("PADUS2_0_Shapefiles/PADUS2_0Designation.shp")
+#PA_e <- readOGR("PADUS2_0_Shapefiles/PADUS2_0Easement.shp")
+#PA_f <- readOGR("PADUS2_0_Shapefiles/PADUS2_0Fee.shp")
 #PA_m <- readOGR("PADUS2_0_Shapefiles/PADUS2_0Marine.shp")
 #PA_p <- readOGR("PADUS2_0_Shapefiles/PADUS2_0Proclamation.shp")
 
@@ -92,9 +92,9 @@ poly_to_raster <- function(poly){
 	return(poly_raster_clip)
 }
 #PA_raster_clip2 <- poly_to_raster(PA_all)
-PA_d_raster <- poly_to_raster(PA_d)
-PA_e_raster <- poly_to_raster(PA_e)
-PA_f_raster <- poly_to_raster(PA_f)
+#PA_d_raster <- poly_to_raster(PA_d)
+#PA_e_raster <- poly_to_raster(PA_e)
+#PA_f_raster <- poly_to_raster(PA_f)
 #PA_raster <- rasterize(PA, blank_raster, field="GAP_Sts")
 #PA_raster[!(is.na(PA_raster))] <- 1
 
@@ -117,16 +117,22 @@ bins <- c(1,50,100,150,200,250,300,350,400,450,500,Inf)
 labels <- c("1-49","50-99","100-149","150-199","200-249","250-299","300-349",
 	"350-399","400-449","450-499","500+")
 pal_tree <- create_pal(states_joined@data$Num_tree_sp,"Spectral",T) #YlOrRd
-pal_shrub <- create_pal(states_joined@data$Num_shrub_sp,"Spectral",T) #YlOrRd
+pal_shrub <- create_pal(states_joined@data$Num_shrub_sp,"Spectral",T)
+
+bins <- c(0,1,5,10,15,20,30,40,50,100,200,Inf)
+labels <- c("0","1-4","5-9","10-14","15-19","20-29","30-39",
+	"40-49","50-99","100-199","200+")
+pal_tree_th <- create_pal(states_joined@data$Num_threat_tree_sp,"Spectral",T)
+pal_shrub_th <- create_pal(states_joined@data$Num_threat_shrub_sp,"Spectral",T)
 
 #bins <- c(1,100,200,300,400,500,Inf)
 #labels_tree <- c("1-99","100-199","200-299","300-399","400-499","500+")
 #pal_tree <- create_pal(states_joined@data$Num_tree_sp,"YlOrRd")
 	# palette 2
-bins <- c(1,100,200,300,400,500,600,700,800,Inf)
-labels_woody <- c("1-99","100-199","200-299","300-399","400-499","500-599","600-699",
-	"700-799","800+")
-pal_woody <- create_pal(states_joined@data$Num_woody_sp,"Spectral",T)
+#bins <- c(1,100,200,300,400,500,600,700,800,Inf)
+#labels_woody <- c("1-99","100-199","200-299","300-399","400-499","500-599","600-699",
+#	"700-799","800+")
+#pal_woody <- create_pal(states_joined@data$Num_woody_sp,"Spectral",T)
 
 # function to create maps
 map.richness <- function(boundary_poly,boundary_richness,my_palette,labels,
@@ -171,13 +177,26 @@ tree
 
 shrub <- map.richness(states_joined,states_joined@data$Num_shrub_sp,
 	pal_shrub,labels,"Number of native <br/> shrub species")
-htmlwidgets::saveWidget(shrub, file = "US_shurb_heatmap.html")
+htmlwidgets::saveWidget(shrub, file = "US_shrub_heatmap.html")
 shrub
 
-woody <- map.richness(states_joined,states_joined@data$Num_woody_sp,
-	pal_woody,labels_woody,"Number of native <br/> woody plant species")
-htmlwidgets::saveWidget(woody, file = "US_woody_heatmap.html")
-woody
+tree_th <- map.richness(states_joined,states_joined@data$Num_threat_tree_sp,
+	pal_tree_th,labels,"Number of native <br/> threatened  <br/> tree species")
+htmlwidgets::saveWidget(tree_th, file = "US_threatened_tree_heatmap.html")
+tree_th
+
+shrub_th <- map.richness(states_joined,states_joined@data$Num_threat_shrub_sp,
+	pal_shrub_th,labels,"Number of native <br/> threatened  <br/> shrub species")
+htmlwidgets::saveWidget(shrub_th, file = "US_threatened_shrub_heatmap.html")
+shrub_th
+
+#woody <- map.richness(states_joined,states_joined@data$Num_woody_sp,
+#	pal_woody,labels_woody,"Number of native <br/> woody plant species")
+#htmlwidgets::saveWidget(woody, file = "US_woody_heatmap.html")
+#woody
+
+
+
 
 
 

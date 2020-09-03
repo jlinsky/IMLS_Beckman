@@ -53,7 +53,7 @@ setwd("./Desktop")
 #   https://drive.google.com/open?id=1hVJIdO49eZg_ggJnsXeLFkGGnxMWl-Oy
 
 # read in CSV of distribution points
-df <- read.csv("all_occ_compiled_unq_all_exsitu_short.csv",as.is=T)
+#df <- read.csv("all_occ_compiled_unq_all_exsitu_short.csv",as.is=T)
   str(df) # take a look at the data structure
 
 # reorder data so the ex situ points are at the top (easier to view in map)
@@ -186,7 +186,7 @@ map_layers()
 ##########################################
 
 # read in CSV of distribution points
-df <- read.csv("all_occ_compiled_unq_all_exsitu_AJOENSIS.csv")
+#df <- read.csv("all_occ_compiled_unq_all_exsitu_AJOENSIS.csv")
 
 # create a map
 map <- df %>%
@@ -228,7 +228,7 @@ map
 #   https://leopardshark.com/esb/IMLS_exsitu_prelim_map.html
 
 # read in CSV of distribution points
-df <- read.csv("exsitu_prelim_compiled_MortonIMLS_toPlot.csv",as.is=T)
+#df <- read.csv("exsitu_prelim_compiled_MortonIMLS_toPlot.csv",as.is=T)
   str(df) # take a look at the data structure
 
 # create list of unique genus names; this is the grouping used to toggle

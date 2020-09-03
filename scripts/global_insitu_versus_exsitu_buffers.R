@@ -139,19 +139,20 @@ compare.eco.count.wwf <- function(insitu,exsitu,radius,pt_proj,buff_proj,eco){
 }
 
 # create map to visualize buffer and point data
-map.buffers <- function(insitu,exsitu,title,radius,eco){
+map.buffers <- function(insitu,exsitu,title,radius,eco,pal){
 	map <- leaflet() %>%
 		## background
-		addProviderTiles("CartoDB.VoyagerNoLabels",
+		addProviderTiles("Esri.WorldTerrain",
 			options = providerTileOptions(maxZoom = 10)) %>%
 		addPolygons(data = countries, stroke = F, color = "white", opacity = 1,
 			fillOpacity = 1, weight = 2, smoothFactor = 0.5) %>%
-		## ecoregions
-		addPolygons(data = eco, color = ~pal, fillOpacity = 0.5, weight = 1,
-			opacity = 0.8, popup = ~ECO_NAME) %>%
 		## country outlines
 		addPolygons(data = countries, stroke = T, color = "black", opacity = 1,
-			fillOpacity = 0, weight = 1, smoothFactor = 0.5) %>%
+			fillOpacity = 0, weight = 1.5, smoothFactor = 0.5, label = ~name,
+			labelOptions = labelOptions(noHide = T, direction = 'top', textOnly = T)) %>%
+		## ecoregions
+		addPolygons(data = eco, color = ~pal, fillOpacity = 0.5, weight = 1,
+			opacity = 0.8) %>%
 		## insitu buffers
 		addPolygons(data = create.buffers(insitu,radius,wgs.proj,wgs.proj),
 			stroke = T, color = "#e3e3e3", smoothFactor = 0.5,	weight = 2, opacity = 0.8,
@@ -234,15 +235,18 @@ exsitu <- pts[which(!is.na(pts$ex_situ)),]
 ### POLYGONS
 
 # read in shapefile of U.S. ecoregions and state boundaries
-ecoregions <- readOGR("us_eco_l4_state_boundaries/us_eco_l4.shp")
+#ecoregions <- readOGR("us_eco_l4_state_boundaries/us_eco_l4.shp")
 # read in shapefile of just U.S. ecoregions
-ecoregions_nobound <- readOGR("us_eco_l4/us_eco_l4_no_st.shp")
+#ecoregions_nobound <- readOGR("us_eco_l4/us_eco_l4_no_st.shp")
 # read in shapefile of TNC global ecoregions
 ecoregions_tnc <- readOGR("terr-ecoregions-TNC/tnc_terr_ecoregions.shp")
 #length(unique(ecoregions_tnc@data$ECO_CODE)) #814
 # read in shapefile of WWF global ecoregions
 ecoregions_wwf <- readOGR("terr-ecoregions-WWF/wwf_terr_ecos.shp")
 #length(unique(ecoregions_wwf@data$ECO_ID)) #827
+# read in shapefile of Resolve 2017 global ecoregions
+#ecoregions_2017 <- readOGR("Ecoregions2017_Resolve/Ecoregions2017.shp")
+#length(unique(ecoregions_2017@data$ECO_ID)) #847
 
 # get shapefile of global country boundaries
 countries <- ne_countries(type = "countries", scale = "medium")
@@ -292,20 +296,21 @@ paste("Percent coverage using 50km radius: ", round(geo_coverage_50,2),
 
 # count ecoregions under 50 km buffers
 	# U.S.
-eco_coverage_50 <- compare.eco.count.us(insitu,exsitu,50000,wgs.proj,aea.proj,
-	ecoregions)
-paste("Percent coverage using 50 km radius and Level IV ecoregions: ",
-	round(eco_coverage_50,2), "%", sep = "")
+#eco_coverage_50 <- compare.eco.count.us(insitu,exsitu,50000,wgs.proj,aea.proj,
+#	ecoregions)
+#paste("Percent coverage using 50 km radius and Level IV ecoregions: ",
+#	round(eco_coverage_50,2), "%", sep = "")
 	# global TNC
 eco_coverage_50 <- compare.eco.count.tnc(insitu,exsitu,50000,wgs.proj,aea.proj,
 	ecoregions_tnc)
 paste("Percent coverage using 50 km radius and TNC ecoregions: ",
 	round(eco_coverage_50,2), "%", sep = "")
 	# global WWF
-eco_coverage_50 <- compare.eco.count.wwf(insitu,exsitu,50000,wgs.proj,aea.proj,
-	ecoregions_wwf)
-paste("Percent coverage using 50 km radius and WWF ecoregions: ",
-	round(eco_coverage_50,2), "%", sep = "")
+#eco_coverage_50 <- compare.eco.count.wwf(insitu,exsitu,50000,wgs.proj,aea.proj,
+#	ecoregions_wwf)
+#paste("Percent coverage using 50 km radius and WWF ecoregions: ",
+#	round(eco_coverage_50,2), "%", sep = "")
+
 # count ecoregions under 10 km buffers
 	# U.S.
 #eco_coverage_10 <- compare.eco.count(insitu,exsitu,10000,wgs.proj,aea.proj,
@@ -345,28 +350,28 @@ paste("Percent coverage using 50 km radius and WWF ecoregions: ",
 
 ### GEOGRAPHIC COVERAGE
 
-summary_tbl_geo <- matrix(c(geo_coverage_50,geo_coverage_50e,geo_coverage_50w,
-													geo_coverage_10,geo_coverage_10e,geo_coverage_10w),
-													ncol=3,byrow=TRUE)
-colnames(summary_tbl_geo) <- c("All","East","West")
-rownames(summary_tbl_geo) <- c("50 km Buffer","10 km Buffer")
-summary_tbl_geo <- as.table(summary_tbl_geo)
+#summary_tbl_geo <- matrix(c(geo_coverage_50,geo_coverage_50e,geo_coverage_50w,
+#													geo_coverage_10,geo_coverage_10e,geo_coverage_10w),
+#													ncol=3,byrow=TRUE)
+#colnames(summary_tbl_geo) <- c("All","East","West")
+#rownames(summary_tbl_geo) <- c("50 km Buffer","10 km Buffer")
+#summary_tbl_geo <- as.table(summary_tbl_geo)
 
 ### ECOLOGICAL COVERAGE
 
-summary_tbl_eco <- matrix(c(eco_coverage_50,eco_coverage_50e,eco_coverage_50w,
-														eco_coverage_10,eco_coverage_10e,eco_coverage_10w),
-														ncol=3,byrow=TRUE)
-colnames(summary_tbl_eco) <- c("All","East","West")
-rownames(summary_tbl_eco) <- c("50 km Buffer","10 km Buffer")
-summary_tbl_eco <- as.table(summary_tbl_eco)
+#summary_tbl_eco <- matrix(c(eco_coverage_50,eco_coverage_50e,eco_coverage_50w,
+#														eco_coverage_10,eco_coverage_10e,eco_coverage_10w),
+#														ncol=3,byrow=TRUE)
+#colnames(summary_tbl_eco) <- c("All","East","West")
+#rownames(summary_tbl_eco) <- c("50 km Buffer","10 km Buffer")
+#summary_tbl_eco <- as.table(summary_tbl_eco)
 
 ### VIEW RESULTS
 
-kable(summary_tbl_geo, format = "pandoc", align = "c", digits = 2,
-	caption = "Geographic Coverage (%)")
-kable(summary_tbl_eco, format = "pandoc", align = "c", digits = 2,
-	caption = "Ecological Coverage (%)")
+#kable(summary_tbl_geo, format = "pandoc", align = "c", digits = 2,
+#	caption = "Geographic Coverage (%)")
+#kable(summary_tbl_eco, format = "pandoc", align = "c", digits = 2,
+#	caption = "Ecological Coverage (%)")
 
 ################################################################################
 # E) Map points and buffers
@@ -375,7 +380,7 @@ kable(summary_tbl_eco, format = "pandoc", align = "c", digits = 2,
 # select only ecoregions that are within the buffers; otherwise there are too
 #		many and it takes a long time to load in browser
 #inter <- intersect.eco.buff(insitu,50000,wgs.proj,wgs.proj,ecoregions_tnc)
-eco_wgs <- spTransform(ecoregions_wwf,wgs.proj)
+eco_wgs_tnc <- spTransform(ecoregions_tnc,wgs.proj)
 #codes <- unique(inter@data$ECO_CODE)
 #eco_inter <- eco_wgs[eco_wgs@data$ECO_CODE %in% codes,]
 #eco_wgs <- spTransform(ecoregions_nobound,wgs.proj)
@@ -395,9 +400,9 @@ eco_wgs <- spTransform(ecoregions_wwf,wgs.proj)
 #pal.bands(alphabet, alphabet2, cols25, glasbey, kelly, polychrome,
 #  stepped, tol, watlington,
 #  show.names=FALSE)
-pal <- createPalette(length(unique(ecoregions_wwf@data$ECO_ID)),
-	seedcolors = c("#bf2b21","#d69b54","#c7ae0e","#3064bf","#7470c4","#660ba3","#b05fab"),
-	range = c(5,50), target = "normal", M=50000)
+pal <- createPalette(length(unique(ecoregions_tnc@data$ECO_CODE)),
+	seedcolors = c("#bf2b21","#d69b54","#c7ae0e","#3064bf","#7470c4","#660ba3",
+	"#b05fab"),range = c(5,50), target = "normal", M=50000)
 pal <- as.vector(pal)
 length(pal)
 
@@ -407,10 +412,10 @@ title <- paste(
 		collection sites of ex situ accessions","<br/>","</b>",
 	"Geographic coverage of ex situ collections, based on 50 kilometer
 		buffers: ", round(geo_coverage_50,2), "%" ,"<br/>",
-	"Ecological coverage of ex situ collections, based on WWF
+	"Ecological coverage of ex situ collections, based on TNC
 		Ecoregions within the buffers: ", round(eco_coverage_50,2), "%",
 	sep = "")
-map_50 <- map.buffers(insitu,exsitu,title,50000,eco_wgs)
+map_50 <- map.buffers(insitu,exsitu,title,50000,eco_wgs_tnc,pal)
 # view map
 map_50
 # save map
