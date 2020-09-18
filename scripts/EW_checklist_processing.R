@@ -86,9 +86,9 @@ write.csv(t, file.path(main_dir,"raw_taxonomic_data",
 ### (WFO, Plantminer, IPNI, Tropicos?, ITIS?, POW?, TPL?)
 ################################################################################
 
-# read in EW/EX checklist
+# read in target taxa checklist
 checklist <- read_xlsx(file.path(main_dir,"raw_taxonomic_data",
-  "EW Species List - 10.8.20.xlsx"))
+  "EW Species List - 11.17.20.xlsx"))
 glimpse(checklist)
 
 ###############
@@ -119,21 +119,15 @@ wfo[is.na(wfo$acc.scientificName),c(20,22)] <-
   wfo[is.na(wfo$acc.scientificName),c(3,6)]
 # keep only necessary columns, rename, and remove duplicates b/c of author diffs
 wfo_standard <- wfo %>%
-  select(scientificName,acc.scientificName,
+  select(scientificName,acc.scientificName,family,taxonomicStatus) %>%
     #scientificNameAuthorship,taxonRank,genus,acc.scientificNameAuthorship,
-    family,taxonomicStatus) %>%
   dplyr::rename(
     taxon_name = scientificName,
     accepted_name = acc.scientificName,
-    #authors.wfo = scientificNameAuthorship,
-    #rank.wfo = taxonRank,
-    taxonomic_status.wfo = taxonomicStatus,
-    #accepted_authors.wfo = acc.scientificNameAuthorship,
-    #genus.wfo = genus
-    family.wfo = family) %>%
-  arrange(taxonomic_status.wfo) %>%
+    taxonomic_status = taxonomicStatus) %>%
+  arrange(taxonomic_status) %>%
   distinct(taxon_name,accepted_name,.keep_all=T)
-wfo_standard$database.wfo <- "WFO"
+wfo_standard$database <- "WFO"
 str(wfo_standard)
 
 ###############
@@ -149,21 +143,13 @@ wcvp <- as.data.frame(wcvp_all)
 # add accepted name data to "accepted" columns
 wcvp[wcvp$accepted_name=="",c(11,12)] <-
   wcvp[wcvp$accepted_name=="",c(6,7)]
-# keep only necessary columns, rename, and remove duplicates b/c of author diffs
+# keep only necessary columns and remove duplicates b/c of author diffs
 wcvp_standard <- wcvp %>%
-  select(taxon_name,accepted_name,family,taxonomic_status,
+  select(taxon_name,accepted_name,family,taxonomic_status) %>%
     #genus,authors,rank,accepted_authors,reviewed
-    ) %>%
-  dplyr::rename(
-    #authors.wcvp = authors,
-    #rank.wcvp = rank,
-    taxonomic_status.wcvp = taxonomic_status,
-    #accepted_authors.wcvp = accepted_authors,
-    #genus.wcvp = genus
-    family.wcvp = family) %>%
-  arrange(taxonomic_status.wcvp) %>%
+  arrange(taxonomic_status) %>%
   distinct(taxon_name,accepted_name,.keep_all=T)
-wcvp_standard$database.wcvp <- "WCVP"
+wcvp_standard$database <- "WCVP"
 str(wcvp_standard)
 
 ###############
@@ -179,8 +165,12 @@ glimpse(other_syns)
 ### Bind all backbone/synonymy data together and match to checklist
 ###############
 
+# create function for binding synonymy and matching to list, since we
+#   will do it a few times, adding new sources each time
+
 # join WFO and WCVP data
-taxa_data <- full_join(wfo_standard,wcvp_standard)
+taxa_data <- full_join(wfo_standard,wcvp_standard,
+  by=c(taxon_name,accepted_name))
 taxa_data[] <- lapply(taxa_data, function(x) gsub("^$", NA, x))
 # join to other synonyms
 taxa_data <- full_join(taxa_data,other_syns)
@@ -197,7 +187,7 @@ str(taxa_data)
 taxa_to_match <- unique(checklist$our_species_name)
 taxa_in_backbone <- taxa_data[taxa_data$taxon_name %in% taxa_to_match,]
 taxa_in_backbone$our_species_name <- taxa_in_backbone$taxon_name
-nrow(taxa_in_backbone) #3705
+nrow(taxa_in_backbone) #3708
 # get accepted names matched to checklist and pull all taxa in backbone with
 #   those accepted names
 acc_to_match <- unique(taxa_in_backbone$accepted_name)
@@ -205,17 +195,17 @@ syn_in_backbone <- taxa_data[taxa_data$accepted_name %in% acc_to_match,]
   # join column listing our species name
 our_names <- taxa_in_backbone[,c(2,6)]
 syn_in_backbone <- left_join(syn_in_backbone,our_names)
-nrow(syn_in_backbone) #31445
+nrow(syn_in_backbone) #31503
 # join exact matches and synonyms together
 all_matches <- rbind(taxa_in_backbone,syn_in_backbone)
 # remove duplicates and arrange data so synonyms are together
 all_matches <- all_matches %>%
-  distinct(taxon_name,accepted_name,.keep_all = T) %>%
+  distinct(taxon_name,accepted_name,our_species_name,.keep_all = T) %>%
   arrange(our_species_name) %>%
   dplyr::select(our_species_name,database,taxon_name,accepted_name,
     taxonomic_status,family)
 head(all_matches,n=20)
-nrow(all_matches) #29949
+nrow(all_matches) #31485
 # check to make sure all rows have our_species_name match
 all_matches[is.na(all_matches$our_species_name),]
 
@@ -223,7 +213,7 @@ all_matches[is.na(all_matches$our_species_name),]
 checklist$taxon_name <- checklist$our_species_name
 checklist_join <- left_join(checklist,taxa_data)
 no_data <- checklist_join[is.na(checklist_join$accepted_name),]
-nrow(no_data) #159
+nrow(no_data) #155
 
 ###############
 ### Check unmatched species for synonyms in
@@ -299,25 +289,54 @@ all_matches <- all_matches %>%
   dplyr::select(our_species_name,database,taxon_name,accepted_name,
     taxonomic_status,family)
 head(all_matches,n=20)
-nrow(all_matches) #30010
+nrow(all_matches) #30068
 # check to make sure all rows have our_species_name match
 all_matches[is.na(all_matches$our_species_name),]
-# write file
-write.csv(all_matches,file.path(main_dir,"raw_taxonomic_data",
-  "checklist_synonyms_2020.csv"),row.names=F)
+
+
+
+# mark records where we have both the accepted name and the synonym on
+#   our checklist
+dups <- all_matches %>%
+  filter(taxon_name != accepted_name) %>% #is a synonym
+  filter(taxon_name %in% taxa_to_match) %>% #taxon name in our list
+  filter(accepted_name %in% taxa_to_match) %>% #accepted name in our list
+  arrange(accepted_name)
+head(dups)
+dups$flag <- "Both synonym and accepted name are on our checklist"
+
+
+
 
 # get list of checklist species with no backbone match
 checklist$taxon_name <- checklist$our_species_name
 checklist_join <- left_join(checklist,taxa_data2)
 no_data <- checklist_join[is.na(checklist_join$accepted_name),]
-nrow(no_data) #144
+nrow(no_data) #140
 # arrange columns before writing file
 no_data <- no_data %>%
   dplyr::select(our_species_name,database,taxon_name,accepted_name,
     taxonomic_status,family)
+
+
+###############
+### Plantminer
+###############
+
+# query Plantminer using 'taxize' package function;
+#   can take a while if more than a few hundred names
+plantminer_match <- plantminer(no_data$our_species_name)
+str(plantminer_match)
+
+
+
+
 # write file
 write.csv(no_data,file.path(main_dir,"raw_taxonomic_data",
   "checklist_no_taxonomic_match_2020.csv"),row.names=F)
+# write file
+write.csv(all_matches,file.path(main_dir,"raw_taxonomic_data",
+  "checklist_synonyms_2020.csv"),row.names=F)
 
 
 
