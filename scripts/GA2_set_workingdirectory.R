@@ -15,7 +15,7 @@
 # Sys.info()[4]
 
 ## For Emily Beckman:
-} else if (Sys.info()[4] == "Africa.local") {
+if (Sys.info()[4] == "Africa.local") {
   # set main working directory
   main_dir <- "/Volumes/GoogleDrive/My Drive/Conservation Gap Analysis/occurrence_points"
   # set location of scripts
@@ -30,6 +30,7 @@
 
 ## can add as many additional "else if" sections as needed to cover other
 #   workstations
+#} else if (Sys.info()[4] == "COMPUTER_NAME_HERE") {
 
 } else {
   # default, which sets the working driectory as the folder from which you
