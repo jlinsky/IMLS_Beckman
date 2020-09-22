@@ -39,7 +39,7 @@ library(googledrive)
 ##############
 
 # set working directory to location where you have/will put your spatial files
-setwd("./Desktop")
+#setwd("./Desktop")
 
 #################################
 # 1. Map with toggles for species
