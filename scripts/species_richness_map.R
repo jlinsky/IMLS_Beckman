@@ -23,11 +23,147 @@ lapply(my.packages, require, character.only=TRUE)
 rm(my.packages)
 
 ################################################################################
-# Let's go ------->
+# QUERCUS GLOBAL RED LIST
+################################################################################
+
+### SET WORKING DIRECTORY
+
+setwd("./Desktop/work")
+
+### READ IN COUNTRIES SHAPEFILE
+
+# https://www.arcgis.com/home/item.html?id=2ca75003ef9d477fb22db19832c9554f
+#world_country_shp <- readOGR("countries_shp/countries.shp")
+# https://hub.arcgis.com/datasets/252471276c9941729543be8789e06e12_0?geometry=23.192%2C13.203%2C-13.370%2C79.425
+world_country_shp <- readOGR("UIA_World_Countries_Boundaries-shp/World_Countries__Generalized_.shp")
+
+### READ IN SPECIES DISTRIBUTION SPREADSHEET
+
+dist <- read.csv("QuercusRLDec2020.csv", as.is=T,
+	na.strings=c("","NA"), colClasses="character")
+dist$countryCodes <- str_squish(dist$countryCodes)
+dist$countryCodes <- gsub(", ",",",dist$countryCodes)
+head(dist)
+	#	species_name 						redlistCategory 	countryCodes 		[...]
+	#	Quercus acatenangensis  LC 								MX,GT,SV
+	# Quercus acerifolia      EN 								US
+	# Quercus acherdophylla   DD 								MX
+
+### SPECIES RICHNESS CALCULATIONS
+
+# function to create richness table and join to polygon data
+richness.poly.countries <- function(df,polygons){
+	# see max number of country codes for one species
+	count_codes <- sapply(df$countryCodes,function(x) str_count(x, pattern = ","))
+	# create array of separated country codes
+	ISO <- str_split_fixed(df$countryCodes, ",", n = (max(count_codes)+1))
+	# sum to calculate richness
+	richness <- as.data.frame(table(ISO))
+	richness <- richness[-1,]
+	print(richness)
+	# merge polygons with species richness data
+	merged <- merge(polygons,richness)
+	merged@data$Freq[which(is.na(merged@data$Freq))] <- 0
+	merged <- merged[merged@data$Freq > 0,]
+	return(merged)
+}
+
+# country-level richness for ALL species
+map_countries <- richness.poly.countries(dist,world_country_shp)
+
+# country-level richness for THREATENED species
+dist_th <- dist %>%
+	filter(dist$redlistCategory == "CR" |
+				 dist$redlistCategory == "EN" |
+			   dist$redlistCategory == "VU")
+map_countries_th <- richness.poly.countries(dist_th,world_country_shp)
+
+# country-level richness for ENDEMIC species
+dist_en <- dist %>%
+	filter(nchar(dist$countryCodes) == 2)
+map_countries_en <- richness.poly.countries(dist_en,world_country_shp)
+
+### CREATE MAPS
+
+# maping function
+map.countries <- function(countries,pal,legend_text,legend_labels){
+	map <- leaflet() %>%
+		addProviderTiles("CartoDB.PositronNoLabels") %>%
+		addPolygons(data = world_country_shp,
+			color = "grey", weight = 0.6, opacity = 1,
+			fillColor = "white",fillOpacity = 1) %>%
+		addPolygons(data = countries,
+			color = "grey", weight = 1, opacity = 1,
+			fillColor = ~pal(countries@data$Freq),
+			fillOpacity = 1) %>%
+		addLegend(values = countries@data$Freq,
+			pal = pal, opacity = 1,
+			title = legend_text,
+			labFormat = function(type, cuts, p) {paste0(legend_labels)},
+			position = "bottomleft")
+	return(map)
+}
+
+# ALL species
+	# create color bins and labels
+	hist(map_countries@data$Freq,breaks=90,xlim=c(0,200),ylim=c(0,25))
+	bins <- c(0,1,5,10,15,20,40,70,100,150,Inf)
+	labels <- c("0","1-4","5-9","10-14","15-19","20-39","40-69","70-99","100-149",
+		"150+")
+	# create color palette
+	#display.brewer.all()
+	palette_country <- colorBin(palette = "PuRd", bins = bins,
+		domain = map_countries@data$Freq, reverse = F, na.color = "white")
+	# create map
+	legend <- paste0("Number of native","<br/>","oak species")
+	map_richness <- map.countries(map_countries,palette_country,legend,labels)
+	map_richness
+  # save map
+  htmlwidgets::saveWidget(map_richness, "GlobalQuercusRichness_leaflet_map.html")
+
+# THREATENED species
+	# create color bins and labels
+	hist(map_countries_th@data$Freq,breaks=31,xlim=c(0,40),ylim=c(0,25))
+	bins <- c(0,1,2,4,5,6,15,20,30,35,Inf)
+	labels <- c("0","1","2-3","4","5","6-14","15-19","20-29","30-34","35+")
+	# create color palette
+	#display.brewer.all()
+	palette_country <- colorBin(palette = "PuRd", bins = bins,
+		domain = map_countries_th@data$Freq, reverse = F, na.color = "white")
+	# create map
+	legend <- paste0("Number of native,","<br/>","threatened oak species")
+	map_richness_th <- map.countries(map_countries_th,palette_country,legend,labels)
+	map_richness_th
+  # save map
+  htmlwidgets::saveWidget(map_richness_th, "GlobalThreatenedQuercusRichness_leaflet_map.html")
+
+# ENDEMIC species
+	# create color bins and labels
+	hist(map_countries_en@data$Freq,breaks=19,xlim=c(0,120),ylim=c(0,15))
+	bins <- c(0,1,2,3,5,7,10,15,50,75,Inf)
+	labels <- c("0","1","2","3-4","5-6","7-9","10-14","15-49","50-74","75+")
+	# create color palette
+	#display.brewer.all()
+	palette_country <- colorBin(palette = "PuRd", bins = bins,
+		domain = map_countries_en@data$Freq, reverse = F, na.color = "white")
+	# create map
+	legend <- paste0("Number of endemic","<br/>","oak species")
+	map_richness_en <- map.countries(map_countries_en,palette_country,legend,labels)
+	map_richness_en
+  # save map
+  htmlwidgets::saveWidget(map_richness_en, "GlobalEndemicQuercusRichness_leaflet_map.html")
+
+
+################################################################################
+# MEXICO PROPAGATION MANUAL
 ################################################################################
 
 # set working directory
-setwd("/Volumes/GoogleDrive/.shortcut-targets-by-id/1Y-U-12BsCxzWDNdAAhDU3_AU1S9krnex/DATA_Figures and Tables for Mexico Manual in Spanish/data_for_heatmap_Beckman")
+setwd("./Desktop/work")
+
+####
+##### MEXICO BY STATE
+####
 
 ### READ IN POLYGONS
 
@@ -37,11 +173,16 @@ mx_states_shp <- readOGR("mexstates/mexstates.shp")
 ### READ IN DISTRIBUTION AND GARDEN LOCATION SPREADSHEETS
 
 # read in country/state distribution information
-dist <- read.csv("quercus_mexico_state_distribution.csv", as.is=T,
-	na.strings=c("","NA"), colClasses="character")
+dist <- read.csv("Mexico2020_RevisadoSusanaValencia_andAllenCoombes.csv",
+	as.is=T,na.strings=c("","NA"),colClasses="character",fileEncoding="UTF-8")
+dist <- dist %>%
+	rename(MX_states = Mexico.state.distribution,
+				 RL_countries = Country.distribution,
+			 	 RL_category = IUCN.Red.List.category)
 	# remove accents
-dist$MX_states <- stringi::stri_trans_general(
-  dist$MX_states, "Latin-ASCII")
+dist$MX_states <- stringi::stri_trans_general(dist$MX_states, "Latin-ASCII")
+	# remove any double spaces
+dist$MX_states <- str_squish(dist$MX_states)
 # read in garden location points
 mx_gardens <- read.csv("mexico_gardens.csv", as.is=T, na.strings=c("","NA"))
 
@@ -63,16 +204,18 @@ richness.poly.states <- function(df,polygons){
 	return(merged)
 }
 
-# find state richness for all species
+# find state richness for ALL species
 state_dist <- dist %>% filter(!is.na(MX_states))
 map_states <- richness.poly.states(state_dist,mx_states_shp)
 # find state richness for THREATENED species
-state_dist_th <- dist %>% filter(!is.na(MX_states) & Threat=="Threatened")
+state_dist_th <- dist %>% filter(!is.na(MX_states) &
+	(RL_category=="CR" | RL_category=="EN" | RL_category=="VU"))
 map_states_th <- richness.poly.states(state_dist_th,mx_states_shp)
 # find state richness for ALL POSSIBLY THREATENED species(includes NT and DD)
-state_dist_pth <- dist %>% filter(!is.na(MX_states) & (Threat=="Threatened" |
-	Threat=="Possibly Threatened"))
-map_states_pth <- richness.poly.states(state_dist_pth,mx_states_shp)
+#state_dist_pth <- dist %>% filter(!is.na(MX_states) &
+#	(RL_category=="CR" | RL_category=="EN" | RL_category=="VU" |
+#	 RL_category=="NT" | RL_category=="DD"))
+#map_states_pth <- richness.poly.states(state_dist_pth,mx_states_shp)
 
 # find number of gardens in each state
 proj <- map_states@proj4string
@@ -145,104 +288,136 @@ map <- map.state.richness(map_states,palette_state,label_state,legend_txt1,
 	legend_txt2); map
 #htmlwidgets::saveWidget(map, file = "Quercus_richness_mexico.html")
 
-
-
-
-
-
-
 # THREATENED
-legend_txt1 <- "Number of native <br/> threatened oak <br/> species"
-legend_txt2 <- "Botanic gardens"
+#legend_txt1 <- "Number of native <br/> threatened oak <br/> species"
+#legend_txt2 <- "Botanic gardens"
 legend_txt1 <- "Número de especies <br/> de robles nativos <br/> amenazados"
 legend_txt2 <- "Jardines Botanicos"
-bins <- c(0,1,2,3,4,5,6,7,8,9,10)
-label_state <- c("0","1","2","3","4","5","6","7","8","9")
+bins <- c(0,1,2,3,4,5,6,7,8)
+label_state <- c("0","1","2","3","4","5","6","7")
 palette_state <- colorBin(palette = "YlOrRd", bins = bins,
 	domain = map_states_th@data$Freq, reverse = F, na.color = "transparent")
 map <- map.state.richness(map_states_th,palette_state,label_state,legend_txt1,
 	legend_txt2); map
 
 # POSSIBLY THREATENED
-legend_txt1 <- "Number of native <br/> likely threatened <br/> oak species"
-bins <- c(0,1,3,6,9,12,15,19,21,Inf)
-label_state <- c("0","1-2","3-5","6-8","9-11","12-14","15-17","18-20","21+")
-palette_state <- colorBin(palette = "YlOrRd", bins = bins,
-	domain = map_states_th@data$Freq, reverse = F, na.color = "transparent")
-map <- map.state.richness(map_states_pth,palette_state,label_state,legend_txt1,
-	legend_txt2); map
+#legend_txt1 <- "Number of native <br/> likely threatened <br/> oak species"
+#bins <- c(0,1,3,6,9,12,15,19,21,Inf)
+#label_state <- c("0","1-2","3-5","6-8","9-11","12-14","15-17","18-20","21+")
+#palette_state <- colorBin(palette = "YlOrRd", bins = bins,
+#	domain = map_states_th@data$Freq, reverse = F, na.color = "transparent")
+#map <- map.state.richness(map_states_pth,palette_state,label_state,legend_txt1,
+#	legend_txt2); map
 
 
 
+####
+##### MESOAMERICA BY COUNTRY
+####
 
+# set working directory
+setwd("./Desktop/work")
 
-
-
-
-
-
-
-### MESOAMERICA
+### READ IN POLYGONS
 
 	# https://www.arcgis.com/home/item.html?id=2ca75003ef9d477fb22db19832c9554f
-world_country_shp <- readOGR("countries_shp/countries.shp")
+#world_country_shp <- readOGR("countries_shp/countries.shp")
+	# https://hub.arcgis.com/datasets/252471276c9941729543be8789e06e12_0?geometry=23.192%2C13.203%2C-13.370%2C79.425
+world_country_shp <- readOGR("UIA_World_Countries_Boundaries-shp/World_Countries__Generalized_.shp")
 
 # select only countries of interest
-select_countries <- c("Mexico","Guatemala","Belize","El Salvador","Honduras",
-	"Nicaragua","Costa Rica","Panama")
-target_countries <- world_country_shp[world_country_shp@data$COUNTRY %in%
-	select_countries,]
-head(target_countries)
+#select_countries <- c("Mexico","Guatemala","Belize","El Salvador","Honduras",
+#	"Nicaragua","Costa Rica","Panama")
+#target_countries <- world_country_shp[world_country_shp@data$COUNTRY %in%
+#	select_countries,]
+#head(target_countries)
 
-## Countries
+### READ IN DISTRIBUTION DATA
+
+# read in country/state distribution information
+dist <- read.csv("Oaks of the World Master List - Oak spp. list w_ categories (for sharing).csv",
+	as.is=T,na.strings=c("","NA"),colClasses="character",fileEncoding="UTF-8")
+dist <- dist %>%
+	rename(RL_countries = Country.distribution,
+			 	 RL_category = IUCN.Red.List.category)
+	# remove any extra spaces
+dist$RL_countries <- str_squish(dist$RL_countries)
+dist$RL_countries <- gsub(" ","",dist$RL_countries)
+
+### CALCULATE STATE RICHNESS
 
 # function to create richness table and join to polygon data
 richness.poly.countries <- function(df,polygons){
 	l <- sapply(df$RL_countries,function(x) str_count(x, pattern = ","))
-	COUNTRY <- str_split_fixed(df$RL_countries, ", ", n = (max(l)+1))
-	richness <- as.data.frame(table(COUNTRY))
+	ISO <- str_split_fixed(df$RL_countries, ",", n = (max(l)+1))
+	richness <- as.data.frame(table(ISO))
 	richness <- richness[-1,]
 	print(richness)
 	merged <- merge(polygons,richness)
 	merged@data$Freq[which(is.na(merged@data$Freq))] <- 0
+	merged <- merged[merged@data$Freq > 0,]
 	return(merged)
 }
 # find country richness
-map_countries <- richness.poly.countries(dist,target_countries)
+map_countries <- richness.poly.countries(dist,world_country_shp)
+# find threatened species country richness
+dist_th <- dist %>%
+	filter(RL_category == "VU" | RL_category == "EN" | RL_category == "CR")
+map_countries_th <- richness.poly.countries(dist_th,world_country_shp)
 
-## make map
-# create color bins and labels
-bins <- c(1,11,21,31,51,71,100,Inf)
-labels <- c("1-10","11-20","21-30","31-50","51-70","71-99","100+")
-# create color palette
-palette_country <- colorBin(palette = "YlOrRd", bins = bins,
-	domain = map_countries@data$Freq, reverse = F, na.color = "transparent")
-# map
-map <- leaflet() %>%
-	addProviderTiles(
-		"CartoDB.PositronNoLabels",
-		options = providerTileOptions(maxZoom = 10)) %>%
-	addPolygons(
-		data = map_countries,
-		label = ~COUNTRY,
-		color = "grey",
-		weight = 2,
-		opacity = 0.5,
-		fillColor = ~palette_country(map_countries@data$Freq),
-		fillOpacity = 0.8) %>%
-	#addControl(
-	#	title,
-	#	position = "topright") %>%
-	addLegend(
-		pal = palette_country,
-		values = map_countries@data$Freq,
-		opacity = 0.7,
-		title = paste0("Number of native","<br/>","oak species"),
-		labFormat = function(type, cuts, p) {paste0(labels)},
-		position = "bottomright") %>%
-	leafem::addStaticLabels(
-		.,
-		data = map_countries,
-		label = map_countries@data$Freq,
-		style = list("font-weight"="bold","font-size"="14px"))
-map
+### MAP
+
+map.countries <- function(countries,pal,legend_text,legend_labels){
+	map <- leaflet() %>%
+		addProviderTiles("CartoDB.PositronNoLabels") %>%
+		addPolygons(data = world_country_shp,
+			color = "grey", weight = 0.6, opacity = 1,
+			fillColor = "white",fillOpacity = 1) %>%
+		addPolygons(data = countries,
+			color = "grey", weight = 1, opacity = 1,
+			fillColor = ~pal(countries@data$Freq),
+			fillOpacity = 1) %>%
+		addLegend(values = countries@data$Freq,
+			pal = pal, opacity = 1,
+			title = legend_text,
+			labFormat = function(type, cuts, p) {paste0(legend_labels)},
+			position = "bottomleft") %>%
+		leafem::addStaticLabels(
+			.,
+			data = countries,
+			label = countries@data$Freq,
+			style = list("font-weight"="bold","font-size"="14px"))
+	return(map)
+}
+
+# ALL species
+	# create color bins and labels
+	#hist(map_countries@data$Freq,breaks=90,xlim=c(0,200),ylim=c(0,25))
+	bins <- c(1,10,15,20,30,60,100,Inf)
+	labels <- c("1-9","10-14","15-19","20-29","30-59","60-99","100+")
+	# create color palette
+	#display.brewer.all()
+	palette_country <- colorBin(palette = "YlOrRd", bins = bins,
+		domain = map_countries@data$Freq, reverse = F, na.color = "white")
+	# create map
+	legend <- paste0("Number of native","<br/>","oak species")
+	map_richness <- map.countries(map_countries,palette_country,legend,labels)
+	map_richness
+  # save map
+  #htmlwidgets::saveWidget(map_richness, "GlobalQuercusRichness_leaflet_map.html")
+
+# THREATENED species
+	# create color bins and labels
+	#hist(map_countries_th@data$Freq,breaks=31,xlim=c(0,40),ylim=c(0,25))
+	bins <- c(0,1,2,3,4,5,10,20,30,Inf)
+	labels <- c("0","1","2","3","4","5-9","10-19","20-29","30+")
+	# create color palette
+	#display.brewer.all()
+	palette_country <- colorBin(palette = "YlOrRd", bins = bins,
+		domain = map_countries_th@data$Freq, reverse = F, na.color = "white")
+	# create map
+	legend <- paste0("Number of native,","<br/>","threatened oak species")
+	map_richness_th <- map.countries(map_countries_th,palette_country,legend,labels)
+	map_richness_th
+  # save map
+  #htmlwidgets::saveWidget(map_richness_th, "GlobalThreatenedQuercusRichness_leaflet_map.html")
