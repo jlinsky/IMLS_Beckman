@@ -59,7 +59,7 @@ richness.poly.countries <- function(df,polygons){
 	ISO <- str_split_fixed(df$countryCodes, ",", n = (max(count_codes)+1))
 	# sum to calculate richness
 	richness <- as.data.frame(table(ISO))
-	richness <- richness[-1,]
+	#richness <- richness[-1,]
 	print(richness)
 	# merge polygons with species richness data
 	merged <- merge(polygons,richness)
@@ -393,8 +393,8 @@ map.countries <- function(countries,pal,legend_text,legend_labels){
 # ALL species
 	# create color bins and labels
 	#hist(map_countries@data$Freq,breaks=90,xlim=c(0,200),ylim=c(0,25))
-	bins <- c(1,10,15,20,30,60,100,Inf)
-	labels <- c("1-9","10-14","15-19","20-29","30-59","60-99","100+")
+	bins <- c(0,1,10,15,20,30,60,100,Inf)
+	labels <- c("0","1-9","10-14","15-19","20-29","30-59","60-99","100+")
 	# create color palette
 	#display.brewer.all()
 	palette_country <- colorBin(palette = "YlOrRd", bins = bins,
@@ -409,8 +409,8 @@ map.countries <- function(countries,pal,legend_text,legend_labels){
 # THREATENED species
 	# create color bins and labels
 	#hist(map_countries_th@data$Freq,breaks=31,xlim=c(0,40),ylim=c(0,25))
-	bins <- c(0,1,2,3,4,5,10,20,30,Inf)
-	labels <- c("0","1","2","3","4","5-9","10-19","20-29","30+")
+	bins <- c(0,1,2,3,4,5,10,30,Inf)
+	labels <- c("0","1","2","3","4","5-9","10-29","30+")
 	# create color palette
 	#display.brewer.all()
 	palette_country <- colorBin(palette = "YlOrRd", bins = bins,
