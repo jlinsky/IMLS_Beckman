@@ -1,8 +1,8 @@
 ### Author: Emily Beckman  ###  Date: 12/11/2020
 
 ### DESCRIPTION: Calculate geographic and ecological coverage of ex situ
-	# collections, and (optionally) map of coverage; see Beckman et al. (2021)
-	# for examples of output table and maps: [[LINK WHEN READY]]
+	# collections, and (optionally) create a map of coverage.
+	# See Beckman et al. (2021) for examples of output table and maps: [[LINK WHEN READY]]
 
 ### INPUTS:
 	# Ecoregions
