@@ -22,6 +22,9 @@ my.packages <- c("leaflet","raster","sp","rgeos","dplyr","rgdal",#"knitr",
 lapply(my.packages, require, character.only=TRUE)
 rm(my.packages)
 
+
+
+
 ################################################################################
 # QUERCUS GLOBAL RED LIST
 ################################################################################
@@ -421,3 +424,207 @@ map.countries <- function(countries,pal,legend_text,legend_labels){
 	map_richness_th
   # save map
   #htmlwidgets::saveWidget(map_richness_th, "GlobalThreatenedQuercusRichness_leaflet_map.html")
+
+
+
+
+
+################################################################################
+# GAP ANALYSIS 2.0
+################################################################################
+
+### SET WORKING DIRECTORY
+
+local_dir <- "./Desktop/work"
+
+### READ IN BOUNDARIES SHAPEFILE
+
+# define initial projection of points (usually WGS 84)
+wgs.proj <- CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84
+	+no_defs +towgs84=0,0,0")
+
+# U.S. counties
+	# https://www.census.gov/geographies/mapping-files/time-series/geo/carto-boundary-file.html
+us_ctys <- readOGR(file.path(local_dir,"cb_2018_us_county_20m/cb_2018_us_county_20m.shp"))
+#target_states <- c("AL","AZ","AR","CA","CO","CT","DE","FL","GA","ID",
+#  "IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE",
+#  "NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN",
+#  "TX","UT","VT","WV","WA","VA","WI","WY")
+#us_states <- us_states[us_states@data$STUSPS %in% target_states,]
+us_ctys.wgs <- spTransform(us_ctys,wgs.proj)
+# create FIPS column to match to species distribution data
+us_ctys@data$FIPS <- paste0("US",us_ctys@data$STATEFP,us_ctys@data$COUNTYFP)
+
+# U.S. states
+us_states <- readOGR(file.path(local_dir,"cb_2018_us_state_5m/cb_2018_us_state_5m.shp"))
+
+# world countries
+
+# https://hub.arcgis.com/datasets/252471276c9941729543be8789e06e12_0?geometry=23.192%2C13.203%2C-13.370%2C79.425
+world_country_shp <- readOGR(file.path(local_dir,"UIA_World_Countries_Boundaries-shp/World_Countries__Generalized_.shp"))
+
+### READ IN SPECIES DISTRIBUTION SPREADSHEET
+
+dist <- read.csv(file.path(local_dir,"GA2_BONAP_USDA_countyDist.csv"),
+	as.is=T, na.strings=c("","NA"), colClasses="character")
+# create genus column and concatenate all county codes for each accepted species name
+dist_collapse <- dist %>%
+	separate("taxon_name_acc","genus",sep=" ",remove=F) %>%
+	group_by(taxon_name_acc) %>%
+  mutate(all_FIPS = paste(unique(FIPS), collapse=",")) %>%
+	distinct(genus,taxon_name_acc,all_FIPS) %>%
+	ungroup()
+head(dist_collapse)
+
+carya <- dist_collapse %>% filter(genus == "Carya")
+fagus <- dist_collapse %>% filter(genus == "Fagus")
+gymnocladus <- dist_collapse %>% filter(genus == "Gymnocladus")
+juglans <- dist_collapse %>% filter(genus == "Juglans")
+laurels <- dist_collapse %>% filter(genus == "Lindera" |
+																		genus == "Persea" |
+																		genus == "Sassafras")
+pinus <- dist_collapse %>% filter(genus == "Pinus")
+taxus <- dist_collapse %>% filter(genus == "Taxus")
+
+### SPECIES RICHNESS CALCULATIONS
+
+# function to create richness table and join to polygon data
+richness.poly.counties <- function(df,polygons){
+	# see max number of country codes for one species
+	count_codes <- sapply(df$all_FIPS,function(x) str_count(x, pattern = ","))
+	# create array of separated country codes
+	FIPS <- str_split_fixed(df$all_FIPS, ",", n = (max(count_codes)+1))
+	# sum to calculate richness
+	richness <- as.data.frame(table(FIPS))
+	#richness <- richness[-1,]
+	print(richness)
+	# merge polygons with species richness data
+	merged <- merge(polygons,richness)
+	merged@data$Freq[which(is.na(merged@data$Freq))] <- 0
+	merged <- merged[merged@data$Freq > 0,]
+	return(merged)
+}
+
+### CREATE MAPS
+
+# maping function
+map.counties <- function(counties,pal,legend_text,legend_labels){
+	map <- leaflet() %>%
+		addProviderTiles("CartoDB.PositronNoLabels") %>%
+		addPolygons(data = counties,
+			color = "grey", weight = 1, opacity = 0.9,
+			fillColor = ~pal(counties@data$Freq),
+			fillOpacity = 0.8) %>%
+		#addPolygons(data = world_country_shp,
+		#	color = "grey", weight = 2, opacity = 0.7,
+		#	fillOpacity = 0) %>%
+		addPolygons(data = us_states,
+			color = "#636363", weight = 1.2, opacity = 1,
+			fillOpacity = 0) %>%
+		addLegend(values = counties@data$Freq,
+			pal = pal, opacity = 0.8,
+			title = legend_text,
+			labFormat = function(type, cuts, p) {paste0(legend_labels)},
+			position = "bottomright") %>%
+		setView(-97, 38, zoom = 5)
+	return(map)
+}
+### "COMMAND+" three times to make scale bar larger
+
+legend <- "Number of species"
+
+## Juglans
+	# calculate counry-level richness
+	map_counties <- richness.poly.counties(juglans,us_ctys)
+	# create color bins and labels
+	sort(unique(map_counties@data$Freq))
+	bins <- c(1,2,3,Inf)
+	labels <- c("1","2","3")
+	# create color palette
+	#display.brewer.all()
+	palette_country <- colorBin(palette = "YlOrRd", bins = bins,
+		domain = map_counties@data$Freq, reverse = F, na.color = "white")
+	# create map
+	map_richness <- map.counties(map_counties,palette_country,legend,labels)
+	map_richness
+## Carya
+	map_counties <- richness.poly.counties(carya,us_ctys)
+	sort(unique(map_counties@data$Freq))
+	bins <- c(1,2,3,4,5,6,7,8,9,Inf)
+	labels <- c("1","2","3","4","5","6","7","8","9")
+	palette_country <- colorBin(palette = "YlOrRd", bins = bins,
+		domain = map_counties@data$Freq, reverse = F, na.color = "white")
+	map_richness <- map.counties(map_counties,palette_country,legend,labels)
+	map_richness
+## Laurels
+	map_counties <- richness.poly.counties(laurels,us_ctys)
+	sort(unique(map_counties@data$Freq))
+	bins <- c(1,2,3,4,5,Inf)
+	labels <- c("1","2","3","4","5")
+	palette_country <- colorBin(palette = "YlOrRd", bins = bins,
+		domain = map_counties@data$Freq, reverse = F, na.color = "white")
+	map_richness <- map.counties(map_counties,palette_country,legend,labels)
+	map_richness
+## Pinus
+	map_counties <- richness.poly.counties(pinus,us_ctys)
+	#hist(map_counties@data$Freq,breaks=90,xlim=c(0,15),ylim=c(0,50))
+	bins <- c(1,2,3,4,5,6,7,8,9,10,11,12,Inf)
+	labels <- c("1","2","3","4","5","6","7","8","9","10","11","12")
+	palette_country <- colorBin(palette = "YlOrRd", bins = bins,
+		domain = map_counties@data$Freq, reverse = F, na.color = "white")
+	map_richness <- map.counties(map_counties,palette_country,legend,labels)
+	map_richness
+## Taxus
+	map_counties <- richness.poly.counties(taxus,us_ctys)
+	sort(unique(map_counties@data$Freq))
+	bins <- c(1,Inf)
+	labels <- c("1")
+	palette_country <- colorBin(palette = "YlOrRd", bins = bins,
+		domain = map_counties@data$Freq, reverse = F, na.color = "white")
+	map_richness <- map.counties(map_counties,palette_country,legend,labels)
+	map_richness
+
+
+## Fagus
+	map_counties <- richness.poly.counties(fagus,us_ctys)
+	sort(unique(map_counties@data$Freq))
+	bins <- c(1,Inf)
+	labels <- c("")
+	palette_country <- colorBin(palette = "YlOrRd", bins = bins,
+		domain = map_counties@data$Freq, reverse = F, na.color = "white")
+	legend <- paste0("Native county of occurrence","<br/>"," for American beech")
+	map_richness <- map.counties(map_counties,palette_country,legend,labels)
+	map_richness
+## Gymnocladus
+	map_counties <- richness.poly.counties(gymnocladus,us_ctys)
+	sort(unique(map_counties@data$Freq))
+	bins <- c(1,Inf)
+	labels <- c("")
+	palette_country <- colorBin(palette = "YlOrRd", bins = bins,
+		domain = map_counties@data$Freq, reverse = F, na.color = "white")
+	legend <- paste0("Native county of occurrence","<br/>"," for Kentucky coffeetree")
+	map_richness <- map.counties(map_counties,palette_country,legend,labels)
+	map_richness
+
+# version when map needs to be zoomed out
+map.counties <- function(counties,pal,legend_text,legend_labels){
+	map <- leaflet() %>%
+		addProviderTiles("CartoDB.PositronNoLabels") %>%
+		addPolygons(data = counties,
+			color = "grey", weight = 0.5, opacity = 0.9,
+			fillColor = ~pal(counties@data$Freq),
+			fillOpacity = 0.8) %>%
+		#addPolygons(data = world_country_shp,
+		#	color = "grey", weight = 2, opacity = 0.7,
+		#	fillOpacity = 0) %>%
+		addPolygons(data = us_states,
+			color = "#636363", weight = 1, opacity = 1,
+			fillOpacity = 0) %>%
+		addLegend(values = counties@data$Freq,
+			pal = pal, opacity = 0.8,
+			title = legend_text,
+			labFormat = function(type, cuts, p) {paste0(legend_labels)},
+			position = "bottomright") %>%
+		setView(-97, 38, zoom = 5)
+	return(map)
+}
