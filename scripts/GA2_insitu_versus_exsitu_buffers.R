@@ -147,23 +147,23 @@ aea.proj <- CRS("+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-110
 	## U.S. only
 		# https://www.epa.gov/eco-research/level-iii-and-iv-ecoregions-continental-united-states
 ecoregions_l4 <- readOGR(file.path(poly_dir,"us_eco_l4_state_boundaries/us_eco_l4.shp"))
-#ecoregions_l4 <- readOGR(file.path(poly_dir,"us_eco_l4/us_eco_l4_no_st.shp"))
-#ecoregions_l4.wgs <- spTransform(ecoregions_l4,wgs.proj)
-#ecoregions_l4_clean <- clgeo_Clean(ecoregions_l4)
+ecoregions_l4_nobound <- readOGR(file.path(poly_dir,"us_eco_l4/us_eco_l4_no_st.shp"))
+ecoregions_l4.wgs <- spTransform(ecoregions_l4_nobound,wgs.proj)
+ecoregions_l4_clean <- clgeo_Clean(ecoregions_l4)
 ecoregions_l3 <- readOGR(file.path(poly_dir,"us_eco_l3/us_eco_l3.shp"))
 ecoregions_l3.wgs <- spTransform(ecoregions_l3,wgs.proj)
 ecoregions_l3_clean.wgs <- clgeo_Clean(ecoregions_l3.wgs)
 	## Global (WWF)
 		# https://www.worldwildlife.org/publications/terrestrial-ecoregions-of-the-world
-ecoregions <- readOGR(file.path(poly_dir,"official/wwf_terr_ecos.shp"))
-ecoregions.wgs <- spTransform(ecoregions,wgs.proj)
-ecoregions.wgs@data$ECO_ID <- as.factor(ecoregions.wgs@data$ECO_ID)
+#ecoregions <- readOGR(file.path(poly_dir,"official/wwf_terr_ecos.shp"))
+#ecoregions.wgs <- spTransform(ecoregions,wgs.proj)
+#ecoregions.wgs@data$ECO_ID <- as.factor(ecoregions.wgs@data$ECO_ID)
 
 ## States
 	## U.S. states
 		# https://www2.census.gov/geo/tiger/GENZ2018/shp/cb_2018_us_state_5m.zip
 us_states <- readOGR(file.path(poly_dir,"cb_2018_us_state_5m/cb_2018_us_state_5m.shp"))
-target_states <- c("AL","AZ","AR","CA","CO","CT","DE","FL","GA","ID",
+target_states <- c("AK","AL","AZ","AR","CA","CO","CT","DE","FL","GA","ID",
   "IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE",
   "NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN",
   "TX","UT","VT","WV","WA","VA","WI","WY")
@@ -192,12 +192,20 @@ world_country_shp <- world_country_shp[world_country_shp@data$ISO %in% target_co
 
 # Ecoregions polygons
 	# change inputs to "ecoregions.wgs@data$ECO_ID" if using global ecoregions
+		# U.S. LEVEL 3
 eco_pal_colors <- createPalette(length(unique(ecoregions_l3_clean.wgs@data$NA_L3CODE)),
 	seedcolors = c("#ba3c3c","#ba7d3c","#baab3c","#3ca7ba","#3c6aba","#573cba","#943cba","#ba3ca1","#ba3c55"),
 	range = c(5,42), target = "normal", M=50000)
 swatch(eco_pal_colors)
 eco_pal_colors <- as.vector(eco_pal_colors)
 eco_pal <- colorFactor(eco_pal_colors,ecoregions_l3_clean.wgs@data$NA_L3CODE)
+		# U.S. LEVEL 4
+eco_pal_colors_l4 <- createPalette(length(unique(ecoregions_l4.wgs@data$US_L4CODE)),
+	seedcolors = c("#ba3c3c","#ba7d3c","#baab3c","#3ca7ba","#3c6aba","#573cba","#943cba","#ba3ca1","#ba3c55"),
+	range = c(5,42), target = "normal", M=50000)
+swatch(eco_pal_colors_l4)
+eco_pal_colors_l4 <- as.vector(eco_pal_colors_l4)
+eco_pal_l4 <- colorFactor(eco_pal_colors_l4,ecoregions_l4.wgs@data$US_L4CODE)
 
 # Ex situ point data triangle icons
 triangle_sm <- makeIcon(iconUrl = "https://www.freeiconspng.com/uploads/triangle-png-28.png",
@@ -214,19 +222,19 @@ triangle_lg <- makeIcon(iconUrl = "https://www.freeiconspng.com/uploads/triangle
 ### CREATE LIST OF TARGET SPECIES
 
 target_sp <- c(
-  #"Carya_floridana","Carya_myristiciformis",
-  #"Fagus_grandifolia",
-  #"Gymnocladus_dioicus",
-  "Juglans_californica","Juglans_cinerea","Juglans_hindsii",
-    "Juglans_major","Juglans_microcarpa","Juglans_nigra"#,
+  #"Carya_floridana","Carya_myristiciformis"#,
+	#"Fagus_grandifolia"#,
+  #"Gymnocladus_dioicus"#,
+  #"Juglans_californica","Juglans_cinerea","Juglans_hindsii",
+  #  "Juglans_major","Juglans_microcarpa","Juglans_nigra"#,
   #"Lindera_benzoin","Persea_borbonia","Persea_humilis","Persea_palustris",
-  #  "Sassafras_albidum",
+  #  "Sassafras_albidum"#,
   #"Pinus_albicaulis","Pinus_balfouriana","Pinus_coulteri","Pinus_flexilis",
   #  "Pinus_lambertiana","Pinus_monticola","Pinus_muricata","Pinus_palustris",
   #  "Pinus_ponderosa","Pinus_radiata","Pinus_strobiformis","Pinus_torreyana",
-  #"Taxus_brevifolia","Taxus_canadensis","Taxus_floridana"
+  "Taxus_brevifolia","Taxus_canadensis","Taxus_floridana"
 )
-#sp <- 4
+sp <- 3
 
 ### START SUMMARY TABLE
 
@@ -276,13 +284,24 @@ for(sp in 1:length(target_sp)){
 		select(-lat_round,-long_round)
 	exsitu$num_indiv <- as.numeric(exsitu$num_indiv)
 	nrow(exsitu)
-		#unique(exsitu$num_indiv)
 	## optionally, remove any bad ex situ points manually by ID number
 	if(exsitu$species_name_acc[1] == "Juglans californica"){
 		exsitu <- exsitu %>% filter(UID != "id00092049" & UID != "id00091728")
 	} else if (exsitu$species_name_acc[1] == "Juglans major"){
 		exsitu <- exsitu %>% filter(UID != "id00092280")
+	} else if(exsitu$species_name_acc[1] == "Carya myristiciformis"){
+		exsitu <- exsitu %>% filter(UID != "id00090650" & UID != "id00091027")
+	} else if(exsitu$species_name_acc[1] == "Taxus brevifolia"){
+		exsitu <- exsitu %>% filter(UID != "id00090887" & UID != "id00090999")
+	} else if(exsitu$species_name_acc[1] == "Taxus floridana"){
+		exsitu <- exsitu %>% filter(UID != "id00090410" & UID != "id00090494")
+	} else if(exsitu$species_name_acc[1] == "Persea borbonia"){
+		exsitu <- exsitu %>% filter(UID != "id00090649")
+	} else if(exsitu$species_name_acc[1] == "Gymnocladus dioicus"){
+		exsitu <- exsitu %>% filter(UID != "id00091548")
 	}
+	sum(exsitu$num_indiv)
+	as.data.frame(exsitu %>% summarize(prov_type,num_indiv))
 	# split by number of individuals, to use different symbol
 	exsitu1 <- exsitu %>% arrange(num_indiv) %>%
 		filter(num_indiv <= 10)
@@ -312,6 +331,12 @@ for(sp in 1:length(target_sp)){
 			UID != "id06078450" & UID != "id06026157")
 	} else if(insitu$species_name_acc[1] == "Juglans nigra"){
 		insitu <- insitu %>% filter(UID != "id06129314")
+	} else if(insitu$species_name_acc[1] == "Carya floridana"){
+		insitu <- insitu %>% filter(UID != "id06168140")
+	} else if(insitu$species_name_acc[1] == "Persea humilis"){
+		insitu <- insitu %>% filter(UID != "id06121432")
+	} else if(insitu$species_name_acc[1] == "Taxus floridana"){
+		insitu <- insitu %>% filter(UID != "id06309741" & UID != "id06130496" & UID != "id06010137")
 	}
 	nrow(insitu)
 
@@ -333,16 +358,16 @@ for(sp in 1:length(target_sp)){
 
 	## Ecological coverage (use count.eco.wwf function if using global ecoregions)
 		# 20 km buffers
-	eco_20_insitu <- count.eco.usl4(insitu,20000,wgs.proj,aea.proj,ecoregions_l4,us_boundary.aea)
-	eco_20_exsitu <- count.eco.usl4(exsitu,20000,wgs.proj,aea.proj,ecoregions_l4,us_boundary.aea)
+	eco_20_insitu <- count.eco.usl4(insitu,20000,wgs.proj,aea.proj,ecoregions_l4_clean,us_boundary.aea)
+	eco_20_exsitu <- count.eco.usl4(exsitu,20000,wgs.proj,aea.proj,ecoregions_l4_clean,us_boundary.aea)
 	eco_20_percent <- (eco_20_exsitu/eco_20_insitu)*100
 		# 50 km buffers
-	eco_50_insitu <- count.eco.usl4(insitu,50000,wgs.proj,aea.proj,ecoregions_l4,us_boundary.aea)
-	eco_50_exsitu <- count.eco.usl4(exsitu,50000,wgs.proj,aea.proj,ecoregions_l4,us_boundary.aea)
+	eco_50_insitu <- count.eco.usl4(insitu,50000,wgs.proj,aea.proj,ecoregions_l4_clean,us_boundary.aea)
+	eco_50_exsitu <- count.eco.usl4(exsitu,50000,wgs.proj,aea.proj,ecoregions_l4_clean,us_boundary.aea)
 	eco_50_percent <- (eco_50_exsitu/eco_50_insitu)*100
 		# 100 km buffers
-	eco_100_insitu <- count.eco.usl4(insitu,100000,wgs.proj,aea.proj,ecoregions_l4,us_boundary.aea)
-	eco_100_exsitu <- count.eco.usl4(exsitu,100000,wgs.proj,aea.proj,ecoregions_l4,us_boundary.aea)
+	eco_100_insitu <- count.eco.usl4(insitu,100000,wgs.proj,aea.proj,ecoregions_l4_clean,us_boundary.aea)
+	eco_100_exsitu <- count.eco.usl4(exsitu,100000,wgs.proj,aea.proj,ecoregions_l4_clean,us_boundary.aea)
 	eco_100_percent <- (eco_100_exsitu/eco_100_insitu)*100
 
 	## Create text for results table
@@ -366,8 +391,8 @@ for(sp in 1:length(target_sp)){
 	### CREATE MAP
 
 	# create buffers for visualization (can change to world_country.wgs boundary as needed)
-	insitu_buff_wgs <- create.buffers(insitu,50000,wgs.proj,wgs.proj,us_boundary.wgs)
-	exsitu_buff_wgs <- create.buffers(exsitu,50000,wgs.proj,wgs.proj,us_boundary.wgs)
+	insitu_buff_wgs <- create.buffers(insitu,20000,wgs.proj,wgs.proj,us_boundary.wgs)
+	exsitu_buff_wgs <- create.buffers(exsitu,20000,wgs.proj,wgs.proj,us_boundary.wgs)
 
 	# map everthing!
 		# can turn layers on or off, or switch them for other polygons, as desired
@@ -380,10 +405,15 @@ for(sp in 1:length(target_sp)){
 		#addPolygons(data = world_country_shp,
 		#	fillColor = "#ccc1ab", fillOpacity = 0.4,
 		#	weight = 2, opacity = 0, color = "#ccc1ab") %>% ##d4d4d4 ##b5b5b5
-		## EPA Level III ecoregions
-		addPolygons(data = ecoregions_l3_clean.wgs,
-			fillOpacity = 0.9, fillColor = ~eco_pal(ecoregions_l3_clean.wgs@data$NA_L3CODE),
-			color = "#757575", weight = 1.5, opacity = 0.8) %>%
+		## Ecoregions
+		addPolygons(
+				# EPA Level III ecoregions
+			#data = ecoregions_l3_clean.wgs,
+			#fillColor = ~eco_pal(ecoregions_l3_clean.wgs@data$NA_L3CODE),
+				# EPA Level IV ecoregions
+			data = ecoregions_l4.wgs,
+			fillColor = ~eco_pal_l4(ecoregions_l4.wgs@data$US_L4CODE),
+			fillOpacity = 0.9, color = "#757575", weight = 1.5, opacity = 0.8) %>%
 		## U.S. states outline
 		addPolygons(data = us_states.wgs, fillColor = "transparent",
 			weight = 1.5, opacity = 0.5, color = "black") %>%
