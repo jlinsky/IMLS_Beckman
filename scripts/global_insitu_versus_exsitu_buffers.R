@@ -1,22 +1,10 @@
-### Author: Emily Beckman  ###  Date: 04/28/2020
+### Author: Emily Beckman  ###  Date: 10/26/2020
 
 ### DESCRIPTION:
-  # This script creates circular buffers around in situ and ex situ points and
-	#		calculates the percent coverage based on area of buffers and number of
-	#		EPA Level IV Ecoregions within the buffers
-	# Right now the script is running for Quercus havardii, based on ex situ
-	#		surveys in 2017 and 2019 and in situ points curated by Sean Hoban lab
 
 ### INPUTS:
-	# all points, with ex situ marked ("BeckHob_QHOccur_Vetted_plusExSitu.csv")
-	# shapefile of EPA Level IV Ecoregions
-	#		("us_eco_l4_state_boundaries/us_eco_l4.shp")
-	# 	("us_eco_l4/us_eco_l4_no_st.shp") # this one is uesd for mapping
-
-	##OLD# in situ points, with at least "latitude" and "longitude" columns
-	##		("BeckHob_QHOccur_Vetted.csv")
-	##OLD# ex situ points, with at least "latitude" and "longitude" columns
-	##		("havardii_exsitu_2017and2019_AllUSSpRecords.csv")
+	# in situ and ex situ points
+	# ecoregions
 
 ### OUTPUTS:
   # Table: Geographic Coverage (%)
@@ -32,11 +20,6 @@
 	# leaflet map with 50 km buffers
 	# leaflet map with 10 km buffers
 
-### NOTES:
-	# Could make more flexible by creating list of populations then cycling
-	# 	through all functions to get data for each popuatlion, versus hard
-	#		coding 'east' and 'west'
-
 ################################################################################
 
 #################
@@ -44,16 +27,345 @@
 #################
 
 my.packages <- c("leaflet","raster","sp","rgeos","dplyr","rgdal","knitr",
-	"RColorBrewer","Polychrome","rnaturalearth")
+	"RColorBrewer","Polychrome","rnaturalearth","cleangeo","smoothr")
 #install.packages (my.packages) # turn on to install current versions
 lapply(my.packages, require, character.only=TRUE)
-rm(my.packages)
 
 select <- dplyr::select
 
-#################
-### FUNCTIONS ###
-#################
+#########################
+### WORKING DIRECTORY ###
+#########################
+
+# set up working directories
+main_dir <- "/Volumes/GoogleDrive/My Drive/Conservation Gap Analysis"
+local_dir <- "./Desktop/work"
+
+################################################################################
+################################################################################
+# Read in data
+################################################################################
+
+# define initial projection of points (usually WGS 84)
+wgs.proj <- CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84
+	+no_defs +towgs84=0,0,0")
+# define projection for calculations (meters must be the unit)
+aea.proj <- CRS("+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-110
+	+x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m")
+
+### POLYGON DATA
+
+## Ecoregions
+	# U.S. only
+	# https://www.epa.gov/eco-research/level-iii-and-iv-ecoregions-continental-united-states
+	# shapefiles of U.S. ecoregions and state boundaries
+#coregions_l4 <- readOGR(file.path(local_dir,"us_eco_l4_state_boundaries/us_eco_l4.shp"))
+#ecoregions_l4.wgs <- spTransform(ecoregions_l4,wgs.proj)
+#ecoregions_l3 <- readOGR(file.path(local_dir,"us_eco_l3_state_boundaries/us_eco_l3_state_boundaries.shp"))
+#ecoregions_l3.wgs <- spTransform(ecoregions_l3,wgs.proj)
+#ecoregions_l3_clean.wgs <- clgeo_Clean(ecoregions_l3.wgs)
+#us_boundary <- aggregate(ecoregions_l3_clean.wgs,dissolve = TRUE)
+	# shapefiles of just U.S. ecoregions
+ecoregions_l4 <- readOGR(file.path(local_dir,"us_eco_l4/us_eco_l4_no_st.shp"))
+ecoregions_l4.wgs <- spTransform(ecoregions_l4,wgs.proj)
+ecoregions_l3 <- readOGR(file.path(local_dir,"us_eco_l3/us_eco_l3.shp"))
+ecoregions_l3.wgs <- spTransform(ecoregions_l3,wgs.proj)
+ecoregions_l3_clean.wgs <- clgeo_Clean(ecoregions_l3.wgs)
+#us_boundary <- aggregate(ecoregions_l3_clean.wgs,dissolve = TRUE)
+	# Global
+	# shapefile of TNC global ecoregions
+	# http://maps.tnc.org/gis_data.html
+#ecoregions_tnc <- readOGR("terr-ecoregions-TNC/tnc_terr_ecoregions.shp")
+#length(unique(ecoregions_tnc@data$ECO_CODE)) #814
+	# shapefile of WWF global ecoregions
+	# https://www.worldwildlife.org/publications/terrestrial-ecoregions-of-the-world
+#ecoregions_wwf <- readOGR("terr-ecoregions-WWF/wwf_terr_ecos.shp")
+#length(unique(ecoregions_wwf@data$ECO_ID)) #827
+	# shapefile of Resolve 2017 global ecoregions
+	# https://ecoregions2017.appspot.com
+#ecoregions_2017 <- readOGR("Ecoregions2017_Resolve/Ecoregions2017.shp")
+#length(unique(ecoregions_2017@data$ECO_ID)) #847
+
+## States
+	# U.S. states
+	# https://www.census.gov/geographies/mapping-files/time-series/geo/carto-boundary-file.html
+us_states <- readOGR(file.path(local_dir,"cb_2018_us_state_5m/cb_2018_us_state_5m.shp"))
+us_states.wgs <- spTransform(us_states,wgs.proj)
+us_boundary <- aggregate(us_states.wgs,dissolve = TRUE)
+
+## Countries
+	# get shapefile of global country boundaries
+#countries <- ne_countries(type = "countries", scale = "large")
+	# reproject to WGS84
+#countries.wgs <- spTransform(countries, wgs.proj)
+#us <- countries.wgs[countries.wgs$name == "United States of America", ]
+
+# Elbert L. Little, Jr. digitized maps
+	# https://web.archive.org/web/20170127093428/https://gec.cr.usgs.gov/data/little/
+#sp <- "fagugran"
+#download.file(
+#	"https://web.archive.org/web/20170127095632/https://gec.cr.usgs.gov/data/little/fagugran.zip",
+#  destfile = file.path(local_dir,paste0(sp,".zip")))
+#unzip(zipfile = file.path(local_dir,paste0(sp,".zip")),
+#  exdir = file.path(local_dir,sp))
+#  # delete unzipped folder
+#unlink(paste0(file.path(local_dir,paste0(sp,".zip"))))
+  # read in file
+#little <- readOGR(file.path(local_dir,sp,paste0(sp,".shp")))
+	# assign projection based on metadata online (was NA)
+#proj4string(little) <- CRS("+init=epsg:4267")
+	# reproject
+#little.wgs <- spTransform(little,wgs.proj)
+	# clip to target area only
+#little.wgs <- gIntersection(us_bound, little.wgs, byid = TRUE, drop_lower_td = TRUE)
+#little_smooth.wgs <- smooth(little.wgs, method = "spline")
+
+### COLOR PALETTES
+
+## Ecoregions polygons
+eco_pal <- createPalette(length(unique(ecoregions_l3_clean.wgs@data$NA_L3CODE)),
+	seedcolors = c("#bf2b21","#d69b54","#c7ae0e","#3064bf","#7470c4","#660ba3",
+	"#b05fab"),range = c(5,50), target = "normal", M=50000)
+eco_pal <- as.vector(eco_pal)
+length(eco_pal)
+
+eco_pal <- colorNumeric("Greys", ecoregions_l3_clean.wgs@data$Shape_Area,
+	na.color = "white")
+
+## Ex situ point data
+	# small
+triangle_sm <- makeIcon(iconUrl = "https://www.freeiconspng.com/uploads/triangle-png-28.png",
+ 	iconWidth = 8, iconHeight = 8)
+triangle_sm2 <- makeIcon(iconUrl = "https://www.freeiconspng.com/uploads/pink-triangle-png-7.png",
+ 	iconWidth = 12, iconHeight = 12)
+	#medium
+triangle_md <- makeIcon(iconUrl = "https://www.freeiconspng.com/uploads/triangle-png-28.png",
+ 	iconWidth = 18, iconHeight = 18)
+triangle_md2 <- makeIcon(iconUrl = "https://www.freeiconspng.com/uploads/pink-triangle-png-7.png",
+ 	iconWidth = 22, iconHeight = 22)
+	# large
+triangle_lg <- makeIcon(iconUrl = "https://www.freeiconspng.com/uploads/triangle-png-28.png",
+	iconWidth = 28, iconHeight = 28)
+triangle_lg2 <- makeIcon(iconUrl = "https://www.freeiconspng.com/uploads/pink-triangle-png-7.png",
+ 	iconWidth = 32, iconHeight = 32)
+	# legend
+#html_legend <- "Source locality and number of wild provenance<br/>
+#individuals present in ex situ collections<br/>
+#<img src='https://www.freeiconspng.com/uploads/triangle-png-28.png'>1-10<br/>
+#<img src='http://leafletjs.com/examples/custom-icons/leaf-red.png'>red"
+
+####
+##### SPECIES BY SPECIES
+####
+
+target_sp <- c("Fagus_grandifolia","Juglans_nigra","Juglans_cinerea",
+	"Juglans_major","Juglans_californica","Juglans_microcarpa","Juglans_hindsii")
+target_sp_codes <- c("531","602","601","606",NA,"605",NA)
+
+
+for(sp in 1:length(target_sp)){
+
+# POINT DATA
+
+# in situ and ex situ points (output from 3-1_refine_occurrence_points.R)
+pts <- read.csv(file.path(main_dir,
+	paste0("occurrence_points/outputs/spp_edited_points/",target_sp[sp],".csv")),
+	na.strings=c("","NA"), stringsAsFactors = F)
+nrow(pts)
+# set database as factor and order appropriately
+pts$database <- factor(pts$database,
+  levels = c("FIA","GBIF","US_Herbaria","iDigBio","BISON","BIEN","Ex_situ"))
+# arrange by database and filter out some flagged points
+pts <- pts %>% arrange(desc(database)) %>%
+	filter(.cen & .inst & .con & .outl & .yr1980 &
+		basisOfRecord != "FOSSIL_SPECIMEN" & basisOfRecord != "LIVING_SPECIMEN" &
+			basisOfRecord != "H?" &
+		establishmentMeans != "INTRODUCED" & establishmentMeans != "MANAGED" &
+			establishmentMeans != "INVASIVE")
+nrow(pts)
+# clip points by ecoregions so only in target area
+	# select coordinate columns
+latlong <- pts %>% select(decimalLongitude,decimalLatitude)
+	# turn occurrence point data into a SpatialPointsDataFrame
+spatial_pts <- SpatialPointsDataFrame(latlong, pts, proj4string = wgs.proj)
+	# clip
+spatial_pts <- spatial_pts[us_boundary, ]
+nrow(spatial_pts)
+insitu <- spatial_pts
+
+# ex situ points only
+exsitu <- insitu[insitu$database == "Ex_situ", ]@data
+exsitu$establishmentMeans <- as.numeric(exsitu$establishmentMeans)
+exsitu1 <- exsitu %>% arrange(establishmentMeans) %>%
+	filter(establishmentMeans <= 10)
+exsitu2 <- exsitu %>% arrange(establishmentMeans) %>%
+	filter(establishmentMeans > 10 & establishmentMeans < 50)
+exsitu3 <- exsitu %>% arrange(establishmentMeans) %>%
+	filter(establishmentMeans >= 50)
+
+### RASTER DATA
+
+## Species native distribution
+	# https://www.fs.usda.gov/rds/archive/catalog/RDS-2013-0013
+# raster of modeled species distribution from Wilson et al. 2013
+distribution <- raster(file.path(local_dir,
+	paste0("Wilson_2013_rasters/s",target_sp_codes[sp],".img")))
+	# aggregate so its not as big and detailed
+distribution_agg <- aggregate(distribution, fact=20, fun=mean, dissolve = T)
+	# remove lowest values (they cover the whole modeled area)
+#distribution_agg[distribution_agg < 0.01] <- NA
+	# reproject
+distribution_agg <- projectRaster(distribution_agg, crs = wgs.proj)
+	# crop
+distribution_agg_clip <- crop(distribution_agg, us_boundary)
+	# mask the cells that do not overlap a polygon
+distribution_agg_clip <- rasterize(us_boundary, distribution_agg_clip,
+	mask=TRUE)
+
+## Species native distribution raster
+dist_pal <- colorNumeric(
+	#c("transparent","#999999","#7d7d7d","#595959","#454545"),
+	c("transparent","#bddb95","#a4db7f","#80db67","#4cc246","#2aa33b","#138a3b","#077036"),#,"#02522f"
+	#c("transparent","#ffe770","#faca5a","#fcaf3a","#f59425","#fa6f19","#de4310","#b82807"),
+	values(distribution_agg_clip),na.color = "transparent")
+
+### MAP
+
+  # create map
+  map <- leaflet(options = leafletOptions(maxZoom = 9)) %>%
+    ## Base layer
+    addProviderTiles(providers$Esri.WorldGrayCanvas) %>% #CartoDB.PositronNoLabels
+		## Species name label
+		addControl(paste0("<b>",target_sp[sp]), position = "topright") %>%
+		## Raster distribution
+		#addRasterImage(distribution_agg_clip, opacity = 1, colors = dist_pal,
+		#	group = "Modeled live basal area (Wilson et al., 2013)") %>%
+    ## In situ
+    addCircleMarkers(data = insitu,
+      color = "#508757", radius = 4, fillOpacity = 0.5, stroke = F,
+			group = "In situ occurrence points") %>%
+		## EPA Level III ecoregions
+		addPolygons(data = ecoregions_l3_clean.wgs,
+			fillColor = "grey",
+			#fillColor = ~eco_pal(ecoregions_l3_clean.wgs@data$Shape_Area),
+			fillOpacity = 0.1, weight = 1, opacity = 0.4, color = "black",
+			group = "EPA Level III Ecoregions") %>%
+		## U.S. states outline
+		addPolygons(data = us_states, fillColor = "transparent",
+			weight = 1.5, opacity = 0.4, color = "black",
+			group = "U.S. state outlines") %>%
+		## Ex situ
+    addMarkers(data = exsitu1,
+			lng = ~decimalLongitude, lat = ~decimalLatitude,
+			icon = triangle_sm2) %>%
+    addMarkers(data = exsitu1,
+			lng = ~decimalLongitude, lat = ~decimalLatitude,
+			icon = triangle_sm) %>%
+    addMarkers(data = exsitu2,
+			lng = ~decimalLongitude, lat = ~decimalLatitude,
+			icon = triangle_md2) %>%
+    addMarkers(data = exsitu2,
+			lng = ~decimalLongitude, lat = ~decimalLatitude,
+			icon = triangle_md) %>%
+    addMarkers(data = exsitu3,
+			lng = ~decimalLongitude, lat = ~decimalLatitude,
+			icon = triangle_lg2) %>%
+    addMarkers(data = exsitu3,
+			lng = ~decimalLongitude, lat = ~decimalLatitude,
+			icon = triangle_lg) %>%
+			#maxZoom = 10
+			#radius = 6, fill = T, fillOpacity = 1,
+			#fillColor = ~pal_exsitu(exsitu1@data$establishmentMeans),
+			#stroke = T, color = "black", weight = 1, opacity = 1)
+		## Layers control
+    addLayersControl(
+      overlayGroups = c(#"Modeled live basal area (Wilson et al., 2013)",
+												"In situ occurrence points",
+												"U.S. state outlines",
+												"EPA Level III Ecoregions"),
+      options = layersControlOptions(collapsed = FALSE))# %>%
+    #hideGroup("In situ occurrence points") %>%
+		#addLegend(pal = dist_pal, values = values(distribution_agg_clip),
+    #	opacity = 1, title = "Live basal area", position = "bottomright")
+		#addControl(html = html_legend, position = "bottomright")
+  map
+
+}
+
+  # save map
+  htmlwidgets::saveWidget(map, file.path(path.figs,
+    paste0(spp.all[i], "_leaflet_map.html")))
+
+  cat("\tEnding ", spp.all[i], ", ", i, " of ", length(spp.all), ".\n\n", sep="")
+}
+
+
+
+
+    #addProviderTiles(providers$CartoDB.PositronNoLabels, #Esri.WorldGrayCanvas,
+    #  group = "CartoDB.PositronNoLabels") %>%
+		## Labels
+    #addControl(paste0("<b>",spp.all[i]), position = "topright") %>%
+		#      popup = ~paste0(
+		 #       "<b>Source database:</b> ",database,"<br/>",
+		  #      "<b>Year:</b> ",year,"<br/>",
+		   #     "<b>Basis of record:</b> ",basisOfRecord,"<br/>",
+		    #    "<b>Dataset name:</b> ",datasetName,"<br/>"),
+      #popup = ~paste0(
+      #  "<b>Institution:</b> ",datasetName,"<br/>",
+      #  "<b>Year:</b> ",year,"<br/>",
+      #  "<b>Provenance type:</b> ",basisOfRecord,"<br/>",
+      #  "<b>Number of individuals:</b> ",establishmentMeans,"<br/>"),
+
+    #addControl(
+    #  "Toggle the checkboxes below on/off to view flagged points (colored red) in each category.</br>
+    #  If no points turn red when box is checked, there are no points flagged in that category.</br>
+    #  Click each point for more information about the record.",
+    #  position = "topright") %>%
+    ## Overlay groups (can toggle)
+			## Little polygon
+		#addPolygons(data = little_smooth.wgs, color = grey, opacity = 0.6,
+		#	group = "Approximate native range (Little, 1971-1978)") %>%
+
+		  #baseGroups = c("CartoDB.PositronNoLabels",
+      #               "CartoDB.Positron",
+      #               "Esri.WorldTopoMap",
+      #               "Stamen.Watercolor"),
+
+    #addControl(
+    #  "See https://github.com/MortonArb-CollectionsValue/OccurrencePoints
+    #  for information about data sources and flagging methodology.",
+    #  position = "bottomleft")
+
+
+
+
+
+
+pal <- colorNumeric(c("#0C2C84", "#41B6C4", "#FFFFCC"), values(distribution_agg),
+  na.color = "transparent")
+
+	leaflet() %>%
+		## background
+		addProviderTiles("Esri.WorldGrayCanvas",
+			options = providerTileOptions(maxZoom = 10)) %>%
+		#addPolygons(data = ecoregions_l3.wgs)
+		## insitu points
+		addCircleMarkers(data = spatial_pts,
+			radius = 3, fillOpacity = 1, stroke = F, color = "black")
+		## exsitu points
+		addCircleMarkers(data = exsitu, lng = ~decimalLongitude, lat = ~decimalLatitude,
+			radius = 3, fillOpacity = 1, stroke = F, color = "white") %>%
+
+
+
+
+################################################################################
+# B) Calculate geographic coverage (buffer areas)
+################################################################################
+
+
+
 
 # create buffers around points, using specified projection
 create.buffers <- function(df,radius,pt_proj,buff_proj){
@@ -181,79 +493,6 @@ map.buffers <- function(insitu,exsitu,title,radius,eco,pal){
 			title = "Key", position = "topright", opacity = 0.4)
 	return(map)
 }
-
-################################################################################
-# A) Read in data
-################################################################################
-
-setwd("./../..")
-setwd("/Volumes/GoogleDrive/My Drive/Q_havardii_buffer_test")
-
-# define projection of points (usually WGS 84)
-wgs.proj <- CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84
-	+no_defs +towgs84=0,0,0")
-# define projection for calculations (meters must be the unit)
-aea.proj <- CRS("+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-110
-	+x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m")
-
-### POINT DATA
-
-pts <- read.csv("BeckHob_QHOccur_Vetted_plusExSitu.csv", as.is=T,
-	na.strings=c("","NA"))
-insitu <- pts
-exsitu <- pts[which(!is.na(pts$ex_situ)),]
-
-# OLD: read in point data
-#insitu <- read.csv("BeckHob_QHOccur_Vetted.csv", as.is=T, na.strings=c("","NA"))
-#exsitu <- read.csv("havardii_exsitu_2017and2019_AllUSSpRecords.csv", as.is=T,
-#	na.strings=c("","NA"))
-
-# OLD: be sure all exsitu points are included in the insitu data
-	# round coordinates before joining
-#insitu$longitude <- round(insitu$longitude,5)
-#insitu$latitude <- round(insitu$latitude,5)
-#exsitu$longitude <- round(exsitu$longitude,5)
-#exsitu$latitude <- round(exsitu$latitude,5)
-	# select columns to join
-#exsitu_add <- exsitu %>% select(latitude,longitude,east_west) %>% distinct()
-	# join unique ex situ points to in situ points
-#insitu <- full_join(insitu,exsitu_add)
-#insitu[which(is.na(insitu$Pop)),]$Pop <- "exsitu_survey"
-# recode gps determination column in exsitu data
-#exsitu <- exsitu %>%
-#  mutate(gps_det = recode(gps_det,
-#         "G" = "Provided by institution",
-#         "L" = "Locality description",
-#				 "C" = "County centroid"))
-
-# create subsets for eastern population and western population
-#insitu_e <- insitu %>% filter(east_west == "E")
-#insitu_w <- insitu %>% filter(east_west == "W")
-#exsitu_e <- exsitu %>% filter(east_west == "E")
-#exsitu_w <- exsitu %>% filter(east_west == "W")
-
-### POLYGONS
-
-# read in shapefile of U.S. ecoregions and state boundaries
-#ecoregions <- readOGR("us_eco_l4_state_boundaries/us_eco_l4.shp")
-# read in shapefile of just U.S. ecoregions
-#ecoregions_nobound <- readOGR("us_eco_l4/us_eco_l4_no_st.shp")
-# read in shapefile of TNC global ecoregions
-ecoregions_tnc <- readOGR("terr-ecoregions-TNC/tnc_terr_ecoregions.shp")
-#length(unique(ecoregions_tnc@data$ECO_CODE)) #814
-# read in shapefile of WWF global ecoregions
-ecoregions_wwf <- readOGR("terr-ecoregions-WWF/wwf_terr_ecos.shp")
-#length(unique(ecoregions_wwf@data$ECO_ID)) #827
-# read in shapefile of Resolve 2017 global ecoregions
-#ecoregions_2017 <- readOGR("Ecoregions2017_Resolve/Ecoregions2017.shp")
-#length(unique(ecoregions_2017@data$ECO_ID)) #847
-
-# get shapefile of global country boundaries
-countries <- ne_countries(type = "countries", scale = "medium")
-
-################################################################################
-# B) Calculate geographic coverage (buffer areas)
-################################################################################
 
 ### OVERALL
 
