@@ -44,8 +44,7 @@
 #################
 
 my.packages <- c("leaflet","raster","sp","rgeos","dplyr","rgdal","knitr",
-	"RColorBrewer")
-
+	"RColorBrewer","Polychrome")
 #install.packages (my.packages) # turn on to install current versions
 lapply(my.packages, require, character.only=TRUE)
 rm(my.packages)
@@ -75,12 +74,13 @@ compare.buff.area <- function(insitu,exsitu,radius,pt_proj,buff_proj){
 	buffer_insitu <- create.buffers(insitu,radius,pt_proj,buff_proj)
 	buffer_exsitu <- create.buffers(exsitu,radius,pt_proj,buff_proj)
 	# calculate buffer area
-	area_insitu <- buffer_insitu@polygons[[1]]@area/1000000
-	#print(paste("Area covered by in situ buffers:", round(area_insitu,2),"km²"))
 	area_exsitu <- buffer_exsitu@polygons[[1]]@area/1000000
-	#print(paste("Area covered by ex situ buffers:", round(area_exsitu,2),"km²"))
+	print(paste("Area covered by ex situ buffers:", round(area_exsitu,0),"km²"))
+	area_insitu <- buffer_insitu@polygons[[1]]@area/1000000
+	print(paste("Area covered by in situ buffers:", round(area_insitu,0),"km²"))
 	# calculate difference between in situ and ex situ buffer areas (% coverage)
 	area_diff_percent <- (area_exsitu/area_insitu)*100
+	print(paste0("Percent geographic coverage: ", round(area_diff_percent,2), "%"))
 	return(area_diff_percent)
 }
 
@@ -102,11 +102,14 @@ compare.eco.count <- function(insitu,exsitu,radius,pt_proj,buff_proj,eco){
 	eco_insitu <- intersect.eco.buff(insitu,radius,pt_proj,buff_proj,eco)
 	eco_exsitu <- intersect.eco.buff(exsitu,radius,pt_proj,buff_proj,eco)
 	# count number of ecoregions under buffers
-	count_insitu <- eco_insitu@data %>% count(US_L4CODE) %>% count()
-	count_exsitu <- eco_exsitu@data %>% count(US_L4CODE) %>% count()
+	count_exsitu <- nrow(eco_exsitu@data %>% distinct(US_L4CODE))
+	print(paste0("Number of ecoregions under ex situ buffers: ",count_exsitu))
+	count_insitu <- nrow(eco_insitu@data %>% distinct(US_L4CODE))
+	print(paste0("Number of ecoregions under in situ buffers: ",count_insitu))
 	# calculate difference in number of ecoregions
 	eco_diff_percent <- (count_exsitu/count_insitu)*100
-	return(eco_diff_percent[1,1])
+	print(paste0("Percent ecological coverage: ", round(eco_diff_percent,2), "%"))
+	return(eco_diff_percent)
 }
 
 # create map to visualize buffer and point data
@@ -114,15 +117,16 @@ map.buffers <- function(insitu,exsitu,title,radius,eco){
 	map <- leaflet() %>%
 		addProviderTiles("CartoDB.PositronNoLabels",
 			options = providerTileOptions(maxZoom = 10)) %>%
-		addPolygons(data = eco, color = ~pal, fillOpacity = 0.1, weight = 1,
-			opacity = 0.3, popup = ~US_L4NAME) %>%
+		#addPolygons(data = eco,
+		#	fillOpacity = 0.9, fillColor = ~pal(eco@data$NA_L4CODE),
+		#	color = "#666666", weight = 1.5, opacity = 0.8) %>%
 		addPolygons(data = create.buffers(insitu,radius,wgs.proj,wgs.proj),
 			smoothFactor = 0.5,	weight = 2, color = "red") %>%
-		addPolygons(data = create.buffers(exsitu,radius,wgs.proj,wgs.proj),
-			smoothFactor = 0.5, weight = 2, color = "black") %>%
 		addCircleMarkers(data = insitu, lng = ~longitude, lat = ~latitude,
 			popup = ~paste("In situ:", Pop),
 			radius = 4, fillOpacity = 0.7, stroke = F, color = "red") %>%
+		addPolygons(data = create.buffers(exsitu,radius,wgs.proj,wgs.proj),
+			smoothFactor = 0.5, weight = 2, color = "black") %>%
 		addCircleMarkers(data = exsitu, lng = ~longitude, lat = ~latitude,
 			#popup = ~paste("Ex situ institution:",institution,"<br/>",
 			#	"Lat-long source:",gps_det,"<br/>","Collection year:",aqu_year,"<br/>",
@@ -141,8 +145,8 @@ map.buffers <- function(insitu,exsitu,title,radius,eco){
 # A) Read in data
 ################################################################################
 
-setwd("./../..")
-setwd("/Volumes/GoogleDrive/My Drive/Q_havardii_buffer_test")
+drive_dir <- "/Volumes/GoogleDrive/My Drive/Q_havardii_buffer_test"
+local_dir <- "./Desktop/work"
 
 # define projection of points (usually WGS 84)
 wgs.proj <- CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84 +datum=WGS84
@@ -153,8 +157,8 @@ aea.proj <- CRS("+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-110
 
 ### POINT DATA
 
-pts <- read.csv("BeckHob_QHOccur_Vetted_plusExSitu.csv", as.is=T,
-	na.strings=c("","NA"))
+pts <- read.csv(file.path(drive_dir,"BeckHob_QHOccur_Vetted_plusExSitu.csv"),
+	as.is=T, na.strings=c("","NA"))
 insitu <- pts
 exsitu <- pts[which(!is.na(pts$ex_situ)),]
 
@@ -179,7 +183,7 @@ exsitu <- pts[which(!is.na(pts$ex_situ)),]
 #  mutate(gps_det = recode(gps_det,
 #         "G" = "Provided by institution",
 #         "L" = "Locality description",
-#				 "C" = "County centroid"))
+#				  "C" = "County centroid"))
 # create subsets for eastern population and western population
 insitu_e <- insitu %>% filter(east_west == "E")
 insitu_w <- insitu %>% filter(east_west == "W")
@@ -189,9 +193,11 @@ exsitu_w <- exsitu %>% filter(east_west == "W")
 ### POLYGONS
 
 # read in shapefile of ecoregions and state boundaries
-ecoregions <- readOGR("us_eco_l4_state_boundaries/us_eco_l4.shp")
+ecoregions <- readOGR(file.path(local_dir,
+	"us_eco_l4_state_boundaries/us_eco_l4.shp"))
 # read in shapefile of just ecoregions
-ecoregions_nobound <- readOGR("us_eco_l4/us_eco_l4_no_st.shp")
+ecoregions_nobound <- readOGR(file.path(local_dir,
+	"us_eco_l4/us_eco_l4_no_st.shp"))
 
 ################################################################################
 # B) Calculate geographic coverage (buffer areas)
@@ -200,35 +206,29 @@ ecoregions_nobound <- readOGR("us_eco_l4/us_eco_l4_no_st.shp")
 ### OVERALL
 
 # calculate area based on 50 kilometer buffers
+print("50 km radius:")
 geo_coverage_50 <- compare.buff.area(insitu,exsitu,50000,wgs.proj,aea.proj)
-paste("Percent coverage using 50km radius: ", round(geo_coverage_50,2),
-	"%", sep = "")
 # calculate area based on 10 kilometer buffers
+print("10 km radius:")
 geo_coverage_10 <- compare.buff.area(insitu,exsitu,10000,wgs.proj,aea.proj)
-paste("Percent coverage using 10km radius: ", round(geo_coverage_10,2),
-	"%", sep = "")
 
 ### EAST ONLY
 
 # calculate area based on 50 kilometer buffers
+print("Eastern population, 50 km radius:")
 geo_coverage_50e <- compare.buff.area(insitu_e,exsitu_e,50000,wgs.proj,aea.proj)
-paste("Percent coverage of EASTERN population, using 50km radius: ",
-	round(geo_coverage_50e,2), "%", sep = "")
 # calculate area based on 10 kilometer buffers
+print("Eastern population, 10 km radius:")
 geo_coverage_10e <- compare.buff.area(insitu_e,exsitu_e,10000,wgs.proj,aea.proj)
-paste("Percent coverage of EASTERN population, using 10km radius: ",
-	round(geo_coverage_10e,2), "%", sep = "")
 
 ### WEST ONLY
 
 # calculate area based on 50 kilometer buffers
+print("Western population, 50 km radius:")
 geo_coverage_50w <- compare.buff.area(insitu_w,exsitu_w,50000,wgs.proj,aea.proj)
-paste("Percent coverage of WESTERN population, using 50km radius: ",
-	round(geo_coverage_50w,2), "%", sep = "")
 # calculate area based on 10 kilometer buffers
+print("Western population, 10 km radius:")
 geo_coverage_10w <- compare.buff.area(insitu_w,exsitu_w,10000,wgs.proj,aea.proj)
-paste("Percent coverage of WESTERN population, using 10km radius: ",
-	round(geo_coverage_10w,2), "%", sep = "")
 
 ################################################################################
 # C) Calculate ecological coverage using buffers (ecoregion counts)
@@ -237,41 +237,29 @@ paste("Percent coverage of WESTERN population, using 10km radius: ",
 ### OVERALL
 
 # count ecoregions under 50 km buffers
-eco_coverage_50 <- compare.eco.count(insitu,exsitu,50000,wgs.proj,aea.proj,
-	ecoregions)
-paste("Percent coverage using 50 km radius and Level IV ecoregions: ",
-	round(eco_coverage_50,2), "%", sep = "")
+print("50 km radius:")
+eco_coverage_50 <- compare.eco.count(insitu,exsitu,50000,wgs.proj,aea.proj,ecoregions)
 # count ecoregions under 10 km buffers
-eco_coverage_10 <- compare.eco.count(insitu,exsitu,10000,wgs.proj,aea.proj,
-	ecoregions)
-paste("Percent coverage using 10 km radius and Level IV ecoregions: ",
-	round(eco_coverage_10,2), "%", sep = "")
+print("10 km radius:")
+eco_coverage_10 <- compare.eco.count(insitu,exsitu,10000,wgs.proj,aea.proj,ecoregions)
 
 ### EAST ONLY
 
 # count ecoregions under 50 km buffers
-eco_coverage_50e <- compare.eco.count(insitu_e,exsitu_e,50000,wgs.proj,aea.proj,
-	ecoregions)
-paste("Percent coverage of EASTERN population, using 50 km radius and Level IV ecoregions: ",
-	round(eco_coverage_50e,2), "%", sep = "")
+print("Eastern population, 50 km radius:")
+eco_coverage_50e <- compare.eco.count(insitu_e,exsitu_e,50000,wgs.proj,aea.proj,ecoregions)
 # count ecoregions under 10 km buffers
-eco_coverage_10e <- compare.eco.count(insitu_e,exsitu_e,10000,wgs.proj,aea.proj,
-	ecoregions)
-paste("Percent coverage of EASTERN population, using 10 km radius and Level IV ecoregions: ",
-	round(eco_coverage_10e,2), "%", sep = "")
+print("Eastern population, 10 km radius:")
+eco_coverage_10e <- compare.eco.count(insitu_e,exsitu_e,10000,wgs.proj,aea.proj,ecoregions)
 
 ### WEST ONLY
 
 # count ecoregions under 50 km buffers
-eco_coverage_50w <- compare.eco.count(insitu_w,exsitu_w,50000,wgs.proj,aea.proj,
-	ecoregions)
-paste("Percent coverage of WESTERN population, using 50 km radius and Level IV ecoregions: ",
-	round(eco_coverage_50w,2), "%", sep = "")
+print("Western population, 50 km radius:")
+eco_coverage_50w <- compare.eco.count(insitu_w,exsitu_w,50000,wgs.proj,aea.proj,ecoregions)
 # count ecoregions under 10 km buffers
-eco_coverage_10w <- compare.eco.count(insitu_w,exsitu_w,10000,wgs.proj,aea.proj,
-	ecoregions)
-paste("Percent coverage of WESTERN population, using 10 km radius and Level IV ecoregions: ",
-	round(eco_coverage_10w,2), "%", sep = "")
+print("Western population, 10 km radius:")
+eco_coverage_10w <- compare.eco.count(insitu_w,exsitu_w,10000,wgs.proj,aea.proj,ecoregions)
 
 ################################################################################
 # D) View summary results tables
@@ -308,13 +296,21 @@ kable(summary_tbl_eco, format = "pandoc", align = "c", digits = 2,
 
 # select only ecoregions that are within the buffers; otherwise there are too
 #		many and it takes a long time to load in browser
-inter <- intersect.eco.buff(insitu,50000,wgs.proj,wgs.proj,ecoregions)
+#inter <- intersect.eco.buff(insitu,50000,wgs.proj,wgs.proj,ecoregions)
 eco_wgs <- spTransform(ecoregions_nobound,wgs.proj)
-codes <- unique(inter@data$US_L4CODE)
-eco_inter <- eco_wgs[eco_wgs@data$US_L4CODE %in% codes,]
+#codes <- unique(inter@data$US_L4CODE)
+#eco_inter <- eco_wgs[eco_wgs@data$US_L4CODE %in% codes,]
 
 # create color palette
-pal <- hcl.colors(length(unique(eco_inter@data$US_L4CODE)))
+#length(unique(eco_inter@data$US_L4CODE))
+eco_pal_colors_l4 <- createPalette(length(unique(eco_wgs@data$US_L4CODE)),
+	seedcolors = c("#ba3c3c","#ba7d3c","#baab3c","#3ca7ba","#3c6aba","#573cba","#943cba","#ba3ca1","#ba3c55"),
+	range = c(5,42), target = "normal", M=50000)
+swatch(eco_pal_colors_l4)
+eco_pal_colors_l4 <- as.vector(eco_pal_colors_l4)
+eco_pal_l4 <- colorFactor(eco_pal_colors_l4,eco_wgs@data$US_L4CODE)
+
+#pal <- hcl.colors(length(unique(eco_inter@data$US_L4CODE)))
 #pal <- rainbow(length(unique(eco_inter@data$US_L4CODE)))
 #pal <- heat.colors(length(unique(eco_inter@data$US_L4CODE)))
 #pal <- terrain.colors(length(unique(eco_inter@data$US_L4CODE)))
@@ -322,6 +318,39 @@ pal <- hcl.colors(length(unique(eco_inter@data$US_L4CODE)))
 #pal <- cm.colors(length(unique(eco_inter@data$US_L4CODE)))
 
 # create map for 50 km buffers
+	map <- leaflet() %>%
+		addProviderTiles("CartoDB.PositronNoLabels", #"Stamen.TonerBackground"
+			options = providerTileOptions(maxZoom = 10)) %>%
+		addPolygons(
+				# EPA Level III ecoregions
+			#data = ecoregions_l3_clean.wgs,
+			#fillColor = ~eco_pal(ecoregions_l3_clean.wgs@data$NA_L3CODE),
+				# EPA Level IV ecoregions
+			data = eco_wgs,
+			fillColor = ~eco_pal_l4(eco_wgs@data$US_L4CODE),
+			fillOpacity = 0.9, color = "#757575", weight = 1.5, opacity = 0.8) %>%
+		addPolygons(data = create.buffers(insitu,50000,wgs.proj,wgs.proj),
+			smoothFactor = 0.5,	weight = 2, color = "white", opacity = 0.9) %>%
+		addCircleMarkers(data = insitu, lng = ~longitude, lat = ~latitude,
+			popup = ~paste("In situ:", Pop),
+			radius = 4, fillOpacity = 0.9, stroke = F, color = "white") %>%
+		addPolygons(data = create.buffers(exsitu,50000,wgs.proj,wgs.proj),
+			smoothFactor = 0.5, weight = 2, color = "black", opacity = 0.9) %>%
+		addCircleMarkers(data = exsitu, lng = ~longitude, lat = ~latitude,
+			#popup = ~paste("Ex situ institution:",institution,"<br/>",
+			#	"Lat-long source:",gps_det,"<br/>","Collection year:",aqu_year,"<br/>",
+			#	"Accession number:",acc_no),
+			popup = ~paste("Ex situ:", Pop),
+			radius = 4, fillOpacity = 0.9, stroke = F, color = "black") %>%
+		addControl(title, position = "topright") %>%
+		addControl("Click on points to see more information",
+			position = "topleft") %>%
+		addLegend(labels = c("In situ","Ex situ"), colors = c("white","black"),
+			title = "Key", position = "topright", opacity = 0.9)
+	map
+
+
+
 title <- paste(
 	"<b>","Quercus havardii in situ distribution and wild
 		collection sites of ex situ accessions","<br/>","</b>",
