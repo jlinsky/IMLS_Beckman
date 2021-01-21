@@ -149,7 +149,7 @@ aea.proj <- CRS("+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-110
 ecoregions_l4 <- readOGR(file.path(poly_dir,"us_eco_l4_state_boundaries/us_eco_l4.shp"))
 ecoregions_l4_nobound <- readOGR(file.path(poly_dir,"us_eco_l4/us_eco_l4_no_st.shp"))
 ecoregions_l4.wgs <- spTransform(ecoregions_l4_nobound,wgs.proj)
-ecoregions_l4_clean <- clgeo_Clean(ecoregions_l4)
+ecoregions_l4_clean <- clgeo_Clean(ecoregions_l4) # takes a long time
 ecoregions_l3 <- readOGR(file.path(poly_dir,"us_eco_l3/us_eco_l3.shp"))
 ecoregions_l3.wgs <- spTransform(ecoregions_l3,wgs.proj)
 ecoregions_l3_clean.wgs <- clgeo_Clean(ecoregions_l3.wgs)
@@ -229,12 +229,12 @@ target_sp <- c(
   #  "Juglans_major","Juglans_microcarpa","Juglans_nigra"#,
   #"Lindera_benzoin","Persea_borbonia","Persea_humilis","Persea_palustris",
   #  "Sassafras_albidum"#,
-  #"Pinus_albicaulis","Pinus_balfouriana","Pinus_coulteri","Pinus_flexilis",
-  #  "Pinus_lambertiana","Pinus_monticola","Pinus_muricata","Pinus_palustris",
-  #  "Pinus_ponderosa","Pinus_radiata","Pinus_strobiformis","Pinus_torreyana",
-  "Taxus_brevifolia","Taxus_canadensis","Taxus_floridana"
+  "Pinus_albicaulis","Pinus_balfouriana","Pinus_coulteri","Pinus_flexilis",
+    "Pinus_lambertiana","Pinus_monticola","Pinus_muricata","Pinus_palustris",
+    "Pinus_ponderosa","Pinus_radiata","Pinus_strobiformis","Pinus_torreyana"#,
+  #"Taxus_brevifolia","Taxus_canadensis","Taxus_floridana"
 )
-sp <- 3
+sp <- 2
 
 ### START SUMMARY TABLE
 
@@ -247,7 +247,9 @@ summary_tbl <- data.frame(species = "start",
 
 ### CYCLE THROUGH TARGET SPECIES TO CALCULATE EX SITU COVERAGE
 
+##
 for(sp in 1:length(target_sp)){
+##
 
 	# print progress
   cat("\tStarting ", target_sp[sp])
@@ -408,11 +410,11 @@ for(sp in 1:length(target_sp)){
 		## Ecoregions
 		addPolygons(
 				# EPA Level III ecoregions
-			#data = ecoregions_l3_clean.wgs,
-			#fillColor = ~eco_pal(ecoregions_l3_clean.wgs@data$NA_L3CODE),
+			data = ecoregions_l3_clean.wgs,
+			fillColor = ~eco_pal(ecoregions_l3_clean.wgs@data$NA_L3CODE),
 				# EPA Level IV ecoregions
-			data = ecoregions_l4.wgs,
-			fillColor = ~eco_pal_l4(ecoregions_l4.wgs@data$US_L4CODE),
+			#data = ecoregions_l4.wgs,
+			#fillColor = ~eco_pal_l4(ecoregions_l4.wgs@data$US_L4CODE),
 			fillOpacity = 0.9, color = "#757575", weight = 1.5, opacity = 0.8) %>%
 		## U.S. states outline
 		addPolygons(data = us_states.wgs, fillColor = "transparent",
