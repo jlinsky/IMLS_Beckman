@@ -31,7 +31,7 @@ rm(my.packages)
 
 ### SET WORKING DIRECTORY
 
-setwd("./Desktop/work")
+setwd("C:/Users/Jean Linsky/Documents/Magnolia_Coordinator/Statistics_and_R/Magnolia/species_richness")
 
 ### READ IN COUNTRIES SHAPEFILE
 
@@ -42,7 +42,7 @@ world_country_shp <- readOGR("UIA_World_Countries_Boundaries-shp/World_Countries
 
 ### READ IN SPECIES DISTRIBUTION SPREADSHEET
 
-dist <- read.csv("QuercusRLDec2020.csv", as.is=T,
+dist <- read.csv("Magnolia_gap_analysis_2021.csv", as.is=T,
 	na.strings=c("","NA"), colClasses="character")
 dist$countryCodes <- str_squish(dist$countryCodes)
 dist$countryCodes <- gsub(", ",",",dist$countryCodes)
